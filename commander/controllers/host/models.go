@@ -1,4 +1,4 @@
-package dhcp
+package host
 
 import (
 	"fmt"
@@ -29,11 +29,28 @@ var (
 		"dhcp6.name-servers",
 		"dhcp6.sntp-servers",
 	}
+
+	DefaultRequireOptions = []string{
+		"subnet-mask",
+	}
+
+	DefaultSendOptions   = "{\"hostname\": \"gethostname()\"}"
+	DefaultTimingOptions = "{\"timeout\": \"10\", \"retry\": \"10\"}"
 )
 
 const (
 	ModeDHCP   = "dhcp"
 	ModeStatic = "static"
+
+	// When DHCP server provides us DNS entries, how to treat them
+	ModeAppend   = "append"
+	ModePrepend  = "prepend"
+	ModeOverride = "override"
+
+	OptionsSeparator = " "
+
+	// Minimum length of hostname string
+	MinHostnameLength = 1
 )
 
 type Hostname struct {
@@ -48,14 +65,18 @@ type Domain struct {
 
 type DHCPProfile struct {
 	ID               int64
-	DefaultOptions   string
-	AppendOptions    string
-	PrependOptions   string
-	SupersedeOptions string
-	SendOptions      string
-	DNSMode          string
-	RequireOptions   string
-	RequestOptions   string
+	TimingOptions    string // Serialized json map[string]string
+	AppendOptions    string // Serialized json map[string]string
+	PrependOptions   string // Serialized json map[string]string
+	SupersedeOptions string // Serialized json map[string]string
+	SendOptions      string // Serialized json map[string]string
+
+	DNSMode            string // One of Mode[Append|Prepend|Supercede]
+	OverrideHostname   bool   // Whether to supercede the name returned by the dhcp server
+	OverrideDomainName bool   // Whether to supercede the name returned by the dhcp server
+
+	RequireOptions string // OptionsSeparator separated string
+	RequestOptions string // OptionsSeparator separated string
 }
 
 type InterfaceConfig struct {
@@ -75,6 +96,20 @@ type InterfaceConfig struct {
 // Callbacks
 //
 
+func (h *Hostname) BeforeSave(txn *gorm.DB) error {
+	// Length check
+	if len(h.Hostname) < MinHostnameLength {
+		return fmt.Errorf("Hostname cannot be shorter than %d chars", MinHostnameLength)
+	}
+	// Invalid chars check
+	for _, char := range []string{" ", ".", "/"} {
+		if strings.Contains(h.Hostname, char) {
+			return fmt.Errorf("Hostname cannot contain %s", char)
+		}
+	}
+	return nil
+}
+
 func (i *InterfaceConfig) BeforeSave(txn *gorm.DB) error {
 	switch i.Mode {
 	case ModeStatic:
@@ -90,8 +125,24 @@ func (i *InterfaceConfig) BeforeSave(txn *gorm.DB) error {
 func (d *DHCPProfile) BeforeCreate(txn *gorm.DB) error {
 	if len(d.RequestOptions) <= 0 {
 		txn.Model(d).Update(DHCPProfile{
-			RequestOptions: strings.Join(DefaultRequestOptions, ","),
+			TimingOptions:  DefaultTimingOptions,
+			SendOptions:    DefaultSendOptions,
+			RequestOptions: strings.Join(DefaultRequestOptions, OptionsSeparator),
+			RequireOptions: strings.Join(DefaultRequireOptions, OptionsSeparator),
 		})
+	}
+	return nil
+}
+
+func (d *DHCPProfile) BeforeDelete(txn *gorm.DB) error {
+	ifaces := []InterfaceConfig{}
+	err := txn.Where(InterfaceConfig{DHCPProfileID: d.ID}).Find(&ifaces).Error
+	if err != nil {
+		return err
+	}
+
+	if len(ifaces) > 0 {
+		return fmt.Errorf("Cannot delete profile, %s is still using it", ifaces[0].Name)
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package dhcp
+package host
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"testing"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 
@@ -15,25 +15,14 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func init() {
-	Suite(&TestSuite{})
-}
-
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) {
-	TestingT(t)
-}
-
 //
 // Test Suite
 //
 
 type TestSuite struct {
-	db              gorm.DB
-	server          *httptest.Server
-	controller      *Controller
-	commitChan      chan func() error
-	commitErrorChan chan error
+	db         gorm.DB
+	server     *httptest.Server
+	controller *Controller
 }
 
 func (ts *TestSuite) SetUpSuite(c *C) {
@@ -41,42 +30,34 @@ func (ts *TestSuite) SetUpSuite(c *C) {
 	c.Assert(err, IsNil)
 
 	ts.db = db
-	ts.commitChan = make(chan func() error)
-	ts.commitErrorChan = make(chan error)
-
-	ts.controller = NewController(&ts.db, ts.commitChan, ts.commitErrorChan)
+	ts.controller = NewController(&ts.db)
 	ts.server = httptest.NewServer(ts.controller)
-
-	// Fake the commit processor
-	go func() {
-		for _ = range ts.commitChan {
-			ts.commitErrorChan <- nil
-		}
-	}()
 }
 
 func (ts *TestSuite) TearDownSuite(c *C) {
 	ts.server.Close()
-	close(ts.commitChan)
-	close(ts.commitErrorChan)
 }
 
 func (ts *TestSuite) SetUpTest(c *C) {
-	db, err := gorm.Open("sqlite3", ":memory:")
+	db, err := gorm.Open("sqlite3", "file::memory:?cache=shared")
 	c.Assert(err, IsNil)
 	ts.db = db
 	ts.controller.MigrateDB()
+}
+
+func (ts *TestSuite) TearDownTest(c *C) {
+	ts.db.Close()
 }
 
 //
 // Helpers
 //
 
-func (ts *TestSuite) requestWithJSONBody(c *C, reqtype string, bodystruct interface{}) *http.Request {
+func (ts *TestSuite) requestWithJSONBody(c *C, reqtype, url string, bodystruct interface{}) *http.Request {
 	bodybytes, err := json.Marshal(bodystruct)
 	c.Assert(err, IsNil)
 
-	req, err := http.NewRequest(reqtype, ts.server.URL+EHostname, bytes.NewBuffer(bodybytes))
+	req, err := http.NewRequest(reqtype, url, bytes.NewBuffer(bodybytes))
 	c.Assert(err, IsNil)
 
 	return req
@@ -167,7 +148,7 @@ func (ts *TestSuite) TestGetDomain(c *C) {
 func (ts *TestSuite) TestPutHostname(c *C) {
 
 	body := Hostname{Hostname: "foobar"}
-	req := ts.requestWithJSONBody(c, "PUT", body)
+	req := ts.requestWithJSONBody(c, "PUT", ts.server.URL+EHostname, body)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -193,7 +174,7 @@ func (ts *TestSuite) TestPutHostname(c *C) {
 func (ts *TestSuite) TestPutDomain(c *C) {
 
 	body := Domain{Domain: "foobar"}
-	req := ts.requestWithJSONBody(c, "PUT", body)
+	req := ts.requestWithJSONBody(c, "PUT", ts.server.URL+EDomain, body)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -222,53 +203,6 @@ func (ts *TestSuite) TestHostnameFileContents(c *C) {
 	c.Assert(string(contents), Equals, DefaultHostname+"\n")
 }
 
-func (ts *TestSuite) TestSaveInterfaceConfigShouldFailWithInvalidIPs(c *C) {
-	err := ts.db.Create(&InterfaceConfig{Name: "test", Mode: ModeStatic}).Error
-	c.Assert(err, Not(IsNil))
-
-	// missing addr
-	err = ts.db.Create(&InterfaceConfig{
-		Name:    "test",
-		Mode:    ModeStatic,
-		Gateway: "1.2.3.4",
-		Netmask: "255.255.255.0"}).Error
-	c.Assert(err, Not(IsNil))
-
-	// missing gateway
-	err = ts.db.Create(&InterfaceConfig{
-		Name:    "test",
-		Mode:    ModeStatic,
-		Address: "1.2.3.4",
-		Netmask: "255.255.255.0"}).Error
-	c.Assert(err, Not(IsNil))
-
-	// missing netmask
-	err = ts.db.Create(&InterfaceConfig{
-		Name:    "test",
-		Mode:    ModeStatic,
-		Address: "5.6.7.8",
-		Gateway: "1.2.3.4"}).Error
-	c.Assert(err, Not(IsNil))
-
-	// invalid netmask
-	err = ts.db.Create(&InterfaceConfig{
-		Name:    "test",
-		Mode:    ModeStatic,
-		Address: "5.6.7.8",
-		Netmask: "255.255.100.0",
-		Gateway: "1.2.3.4"}).Error
-	c.Assert(err, Not(IsNil))
-
-	// gateway not within mask
-	err = ts.db.Create(&InterfaceConfig{
-		Name:    "test",
-		Mode:    ModeStatic,
-		Address: "192.168.168.8",
-		Netmask: "255.255.255.0",
-		Gateway: "1.2.3.4"}).Error
-	c.Assert(err, Not(IsNil))
-}
-
 func (ts *TestSuite) TestInterfaceFileGeneration(c *C) {
 
 	err := ts.db.Create(&InterfaceConfig{
@@ -286,7 +220,7 @@ func (ts *TestSuite) TestInterfaceFileGeneration(c *C) {
 	}).Error
 	c.Assert(err, IsNil)
 
-	filestr, err := ts.controller.interfacesConfigFileContents()
+	filecontents, err := ts.controller.interfacesConfigFileContents()
 	c.Assert(err, IsNil)
 
 	expectedLines := []string{
@@ -297,21 +231,40 @@ func (ts *TestSuite) TestInterfaceFileGeneration(c *C) {
 		"iface lo inet loopback",
 		"",
 		"auto eth0",
-		"iface eth0inetdhcp",
+		"iface eth0 inet dhcp",
 		"",
 		"auto test1",
-		"iface test1inetstatic",
+		"iface test1 inet static",
 		"address 192.168.168.8",
 		"netmask 255.255.255.0",
 		"gateway 192.168.168.1",
 		"",
 		"auto test2",
-		"iface test2inetdhcp",
+		"iface test2 inet dhcp",
 	}
 
-	filebytes := bytes.NewBufferString(filestr)
+	filebytes := bytes.NewBuffer(filecontents)
 	for _, expstr := range expectedLines {
 		b := filebytes.Next(len(expstr) + 1)
 		c.Assert(string(b), Equals, expstr+"\n")
 	}
+}
+
+func (ts *TestSuite) TestDhclientConfFileGeneration(c *C) {
+	err := ts.db.Create(&InterfaceConfig{
+		Name:    "test0",
+		Mode:    ModeStatic,
+		Address: "192.168.168.8",
+		Netmask: "255.255.255.0",
+		Gateway: "192.168.168.1"}).Error
+	c.Assert(err, IsNil)
+
+	// by default db contains eth0 set to dhcp mode.
+	filecontents, err := ts.controller.dhclientConfFileContents()
+	c.Assert(err, IsNil)
+
+	// Ensure a section exists for dhcp interface
+	c.Assert(strings.Contains(string(filecontents), "interface eth0 {"), Equals, true)
+	// No section for static interfaces
+	c.Assert(strings.Contains(string(filecontents), "interface test0 {"), Equals, false)
 }
