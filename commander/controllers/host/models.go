@@ -9,33 +9,20 @@ import (
 )
 
 var (
+	// Default hostname for the system
+	DefaultHostname = "ncc1701"
+	DefaultDomain   = ""
+
 	// Default options we request from the dhcp server
-	DefaultRequestOptions = []string{
-		"subnet-mask",
-		"broadcast-address",
-		"time-offset",
-		"routers",
-		"domain-name",
-		"domain-name-servers",
-		"domain-search",
-		"host-name",
-		"netbios-name-servers",
-		"netbios-scope",
-		"interface-mtu",
-		"rfc3442-classless-static-routes",
-		"ntp-servers",
-		"dhcp6.domain-search",
-		"dhcp6.fqdn",
-		"dhcp6.name-servers",
-		"dhcp6.sntp-servers",
-	}
 
-	DefaultRequireOptions = []string{
-		"subnet-mask",
-	}
-
-	DefaultSendOptions   = "{\"hostname\": \"gethostname()\"}"
-	DefaultTimingOptions = "{\"timeout\": \"10\", \"retry\": \"10\"}"
+	DefaultSendOptionsJSON    = "{\"hostname\": \"gethostname()\"}"
+	DefaultTimingOptionsJSON  = "{\"timeout\": \"10\", \"retry\": \"10\"}"
+	DefaultRequireOptionsJSON = "[\"subnet-mask\"]"
+	DefaultRequestOptionsJSON = "[\"subnet-mask\", \"broadcast-address\", \"time-offset\", " +
+		"\"routers\", \"domain-name\", \"domain-name-servers\", \"domain-search\", " +
+		"\"host-name\", \"netbios-name-servers\", \"netbios-scope\", \"interface-mtu\", " +
+		"\"rfc3442-classless-static-routes\", \"ntp-servers\", \"dhcp6.domain-search\", " +
+		"\"dhcp6.fqdn\", \"dhcp6.name-servers\", \"dhcp6.sntp-servers\"]"
 )
 
 const (
@@ -45,9 +32,7 @@ const (
 	// When DHCP server provides us DNS entries, how to treat them
 	ModeAppend   = "append"
 	ModePrepend  = "prepend"
-	ModeOverride = "override"
-
-	OptionsSeparator = " "
+	ModeOverride = "override" // supercede, really
 
 	// Minimum length of hostname string
 	MinHostnameLength = 1
@@ -64,12 +49,14 @@ type Domain struct {
 }
 
 type DHCPProfile struct {
-	ID               int64
-	TimingOptions    string // Serialized json map[string]string
-	AppendOptions    string // Serialized json map[string]string
-	PrependOptions   string // Serialized json map[string]string
-	SupersedeOptions string // Serialized json map[string]string
-	SendOptions      string // Serialized json map[string]string
+	ID            int64
+	TimingOptions string // Serialized json map[string]string
+	SendOptions   string // Serialized json map[string]string
+
+	// Not yet supported
+	// AppendOptions    string // Serialized json map[string]string
+	// PrependOptions   string // Serialized json map[string]string
+	// SupersedeOptions string // Serialized json map[string]string
 
 	DNSMode            string // One of Mode[Append|Prepend|Supercede]
 	OverrideHostname   bool   // Whether to supercede the name returned by the dhcp server
@@ -125,10 +112,10 @@ func (i *InterfaceConfig) BeforeSave(txn *gorm.DB) error {
 func (d *DHCPProfile) BeforeCreate(txn *gorm.DB) error {
 	if len(d.RequestOptions) <= 0 {
 		txn.Model(d).Update(DHCPProfile{
-			TimingOptions:  DefaultTimingOptions,
-			SendOptions:    DefaultSendOptions,
-			RequestOptions: strings.Join(DefaultRequestOptions, OptionsSeparator),
-			RequireOptions: strings.Join(DefaultRequireOptions, OptionsSeparator),
+			TimingOptions:  DefaultTimingOptionsJSON,
+			SendOptions:    DefaultSendOptionsJSON,
+			RequestOptions: DefaultRequestOptionsJSON,
+			RequireOptions: DefaultRequireOptionsJSON,
 		})
 	}
 	return nil
@@ -144,11 +131,12 @@ func (d *DHCPProfile) BeforeDelete(txn *gorm.DB) error {
 	if len(ifaces) > 0 {
 		return fmt.Errorf("Cannot delete profile, %s is still using it", ifaces[0].Name)
 	}
+
 	return nil
 }
 
 //
-// helpers
+// Helpers
 //
 
 func (i *InterfaceConfig) validateDHCPProfile(txn *gorm.DB) error {

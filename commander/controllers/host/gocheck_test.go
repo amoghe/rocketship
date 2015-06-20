@@ -10,6 +10,7 @@ import (
 func init() {
 	Suite(&TestSuite{})
 	Suite(&ModelsTestSuite{})
+	Suite(&ResourcesTestSuite{})
 }
 
 // Hook up gocheck into the "go test" runner.

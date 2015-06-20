@@ -13,10 +13,6 @@ import (
 )
 
 const (
-	// Default hostname for the system
-	DefaultHostname = "ncc1701"
-	DefaultDomain   = ""
-
 	// Endpoint at which the hostname can be configured
 	EHostname = "/hostname"
 	// Endpoint at which domain can be configured
@@ -377,7 +373,7 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 		return string(retbuf.Bytes())
 	}
 
-	deserializeMap := func(ser string) map[string]string {
+	decodeMap := func(ser string) map[string]string {
 		retmap := make(map[string]string)
 		if len(ser) <= 0 {
 			return retmap
@@ -390,19 +386,35 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 		return retmap
 	}
 
+	decodeSlice := func(ser string) []string {
+		ret := []string{}
+		if len(ser) <= 0 {
+			return ret
+		}
+		err := json.Unmarshal([]byte(ser), &ret)
+		if err != nil {
+			// TODO: log
+			fmt.Println("ERROR (", ser, "):", err)
+		}
+		return ret
+	}
+
 	ret.WriteString(fmt.Sprintf("interface %s {\n", iface.Name))
 
 	// TODO: handle the 'special' HostNameMode and DomainNameMode flags which allow the user to
 	// easily specify whether to override the hostname and domain name returned by the server.
 
 	// Timing options are not 'named'
-	ret.WriteString(sectionForMap(2, "", deserializeMap(dhcpProfile.TimingOptions)))
-	ret.WriteString(sectionForMap(2, "append", deserializeMap(dhcpProfile.AppendOptions)))
-	ret.WriteString(sectionForMap(2, "prepend", deserializeMap(dhcpProfile.PrependOptions)))
-	ret.WriteString(sectionForMap(2, "supersede", deserializeMap(dhcpProfile.SupersedeOptions)))
-	ret.WriteString(sectionForMap(2, "send", deserializeMap(dhcpProfile.SendOptions)))
-	ret.WriteString(sectionForSlice(2, "request", strings.Split(dhcpProfile.RequestOptions, " ")))
-	ret.WriteString(sectionForSlice(2, "require", strings.Split(dhcpProfile.RequireOptions, " ")))
+	ret.WriteString(sectionForMap(2, "", decodeMap(dhcpProfile.TimingOptions)))
+	ret.WriteString(sectionForMap(2, "send", decodeMap(dhcpProfile.SendOptions)))
+	ret.WriteString(sectionForSlice(2, "request", decodeSlice(dhcpProfile.RequestOptions)))
+	ret.WriteString(sectionForSlice(2, "require", decodeSlice(dhcpProfile.RequireOptions)))
+
+	// Not configurable yet (see models.go)
+	//ret.WriteString(sectionForMap(2, "append", decodeMap(dhcpProfile.AppendOptions)))
+	//ret.WriteString(sectionForMap(2, "prepend", decodeMap(dhcpProfile.PrependOptions)))
+	//ret.WriteString(sectionForMap(2, "supersede", decodeMap(dhcpProfile.SupersedeOptions)))
+
 	ret.WriteString("}\n")
 
 	return string(ret.Bytes()), nil
