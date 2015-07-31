@@ -8,9 +8,10 @@ import (
 
 // Register the test suites we wish to run
 func init() {
-	Suite(&TestSuite{})
-	Suite(&ModelsTestSuite{})
-	Suite(&ResourcesTestSuite{})
+	Suite(&ControllerTestSuite{})
+	Suite(&HostnameTestSuite{})
+	Suite(&InterfacesTestSuite{})
+	Suite(&UsersTestSuite{})
 }
 
 // Hook up gocheck into the "go test" runner.
