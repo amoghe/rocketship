@@ -436,3 +436,21 @@ func (r DHCPProfileResource) ToDHCPProfileModel() (DHCPProfile, error) {
 		//SupercedeOptions: "{}",
 	}, nil
 }
+
+//
+// DB Seed
+//
+
+func SeedInterface(db *gorm.DB) {
+	var (
+		profile = DHCPProfile{ID: 1}
+		iface   = InterfaceConfig{Name: "eth0", Mode: ModeDHCP, DHCPProfileID: 1}
+	)
+
+	// Ensure latest schema
+	db.AutoMigrate(&DHCPProfile{})
+	db.AutoMigrate(&InterfaceConfig{})
+
+	db.FirstOrCreate(&profile, profile)
+	db.FirstOrCreate(&iface, iface)
+}

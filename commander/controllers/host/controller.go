@@ -47,22 +47,11 @@ func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Controller) MigrateDB() {
-	var (
-		profile = DHCPProfile{ID: 1}
-		iface   = InterfaceConfig{Name: "eth0", Mode: ModeDHCP, DHCPProfileID: 1}
-	)
 
-	c.db.AutoMigrate(&Hostname{})
-	c.db.AutoMigrate(&Domain{})
-	c.db.AutoMigrate(&DHCPProfile{})
-	c.db.AutoMigrate(&InterfaceConfig{})
-	c.db.AutoMigrate(&User{})
-
-	// Always ensure first entry exists
-	c.db.FirstOrCreate(&Hostname{Hostname: DefaultHostname})
-	c.db.FirstOrCreate(&Domain{Domain: DefaultDomain})
-	c.db.FirstOrCreate(&profile, profile)
-	c.db.FirstOrCreate(&iface, iface)
+	SeedHostname(c.db)
+	SeedDomain(c.db)
+	SeedInterface(c.db)
+	SeedUsers(c.db)
 }
 
 //

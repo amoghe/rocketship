@@ -99,3 +99,12 @@ func (d *DomainResource) FromDomainModel(m Domain) {
 func (d DomainResource) ToDomainModel() Domain {
 	return Domain{Domain: d.Domain}
 }
+
+//
+// DB Seed
+//
+
+func SeedDomain(db *gorm.DB) {
+	db.AutoMigrate(&Domain{})
+	db.FirstOrCreate(&Domain{Domain: DefaultDomain})
+}
