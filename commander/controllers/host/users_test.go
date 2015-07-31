@@ -112,7 +112,7 @@ func (ts *UsersTestSuite) TestPasswdFileContents(c *C) {
 	c.Assert(err, IsNil)
 
 	tokens := strings.Split(string(f), "\n")
-	c.Assert(tokens, HasLen, len(users)+1) // trailing newline causes one additional token
+	c.Assert(tokens, HasLen, len(users)+len(defaultUsers)+1) // trailing newline causes one additional token
 }
 
 func (ts *UsersTestSuite) TestShadowFileContents(c *C) {
@@ -135,5 +135,5 @@ func (ts *UsersTestSuite) TestShadowFileContents(c *C) {
 	c.Assert(err, IsNil)
 
 	tokens := strings.Split(string(f), "\n")
-	c.Assert(tokens, HasLen, len(users)+1) // trailing newline causes one additional token
+	c.Assert(tokens, HasLen, len(users)+len(defaultUsers)+1) // trailing \n causes additional token
 }

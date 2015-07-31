@@ -26,6 +26,82 @@ const (
 	PasswordFileSeparator = ":"
 )
 
+var (
+	defaultUsers = []User{
+		//   name          comment      uid    group          homedir
+		{
+			Name:    "root",
+			Comment: "Superuser",
+			Uid:     0,
+			Gid:     defaultGroups["root"],
+			Homedir: "/root",
+		},
+		{
+			Name:    "daemon",
+			Comment: "",
+			Uid:     1,
+			Gid:     defaultGroups["daemon"],
+			Homedir: "/usr/sbin",
+		},
+		{
+			Name:    "bin",
+			Comment: "",
+			Uid:     2,
+			Gid:     defaultGroups["bin"],
+			Homedir: "/bin",
+		},
+		{
+			Name:    "sys",
+			Comment: "",
+			Uid:     3,
+			Gid:     defaultGroups["sys"],
+			Homedir: "/dev",
+		},
+		{
+			Name:    "www-data",
+			Comment: "",
+			Uid:     33,
+			Gid:     defaultGroups["www-data"],
+			Homedir: "/var/www",
+		},
+		{
+			Name:    "libuuid",
+			Comment: "",
+			Uid:     100,
+			Gid:     defaultGroups["libuuid"],
+			Homedir: "/var/lib/uuid",
+		},
+		{
+			Name:    "syslog",
+			Comment: "",
+			Uid:     101,
+			Gid:     defaultGroups["syslog"],
+			Homedir: "/home/syslog",
+		},
+		{
+			Name:    "messagebus",
+			Comment: "",
+			Uid:     102,
+			Gid:     defaultGroups["messagebus"],
+			Homedir: "/var/run/dbus",
+		},
+		{
+			Name:    "sshd",
+			Comment: "SSH daemon",
+			Uid:     105,
+			Gid:     defaultGroups["nogroup"],
+			Homedir: "/var/run/sshd",
+		},
+		{
+			Name:    "nobody",
+			Comment: "",
+			Uid:     65534,
+			Gid:     defaultGroups["nogroup"],
+			Homedir: "/nonexistent",
+		},
+	}
+)
+
 //
 // File generators
 //
@@ -39,6 +115,11 @@ func (c *Controller) passwdFileContents() ([]byte, error) {
 	err := c.db.Find(&users).Error
 	if err != nil {
 		return []byte{}, err
+	}
+
+	for _, user := range defaultUsers {
+		contents.WriteString(user.PasswdFileEntry())
+		contents.WriteString("\n")
 	}
 
 	for _, user := range users {
@@ -58,6 +139,11 @@ func (c *Controller) shadowFileContents() ([]byte, error) {
 	err := c.db.Find(&users).Error
 	if err != nil {
 		return []byte{}, err
+	}
+
+	for _, user := range defaultUsers {
+		contents.WriteString(user.ShadowFileEntry())
+		contents.WriteString("\n")
 	}
 
 	for _, user := range users {
@@ -206,11 +292,4 @@ func (u *UserResource) FromUserModel(m User) {
 
 func SeedUsers(db *gorm.DB) {
 	db.AutoMigrate(&User{})
-
-	defaultUsers := []User{
-		{},
-	}
-	for _, u := range defaultUsers {
-		db.FirstOrCreate(&u)
-	}
 }
