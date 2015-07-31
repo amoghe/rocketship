@@ -382,7 +382,7 @@ type DHCPProfileResource struct {
 	RequestOptions []string // OptionsSeparator separated string
 }
 
-func (r *DHCPProfileResource) FromDHCPProfile(d DHCPProfile) error {
+func (r *DHCPProfileResource) FromDHCPProfileModel(d DHCPProfile) error {
 	var (
 		deserializedRequestOpts = []string{}
 		deserializedRequireOpts = []string{}
@@ -410,7 +410,7 @@ func (r *DHCPProfileResource) FromDHCPProfile(d DHCPProfile) error {
 	return nil
 }
 
-func (r *DHCPProfileResource) ToDHCPProfile() (DHCPProfile, error) {
+func (r DHCPProfileResource) ToDHCPProfileModel() (DHCPProfile, error) {
 
 	serializedRequestOpts, err := json.Marshal(r.RequestOptions)
 	if err != nil {

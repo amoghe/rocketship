@@ -189,8 +189,8 @@ func (r *InterfacesTestSuite) TestDHCPProfileToResourceConversion(c *C) {
 	}
 
 	for _, d := range goodProfiles {
-		resource := DHCPProfileResource{}
-		c.Assert(resource.FromDHCPProfile(d), IsNil)
+		resource := &DHCPProfileResource{}
+		c.Assert(resource.FromDHCPProfileModel(d), IsNil)
 		c.Assert(resource.DNSMode, Equals, d.DNSMode)
 		c.Assert(resource.OverrideHostname, Equals, d.OverrideHostname)
 		c.Assert(resource.OverrideDomainName, Equals, d.OverrideDomainName)
@@ -198,7 +198,7 @@ func (r *InterfacesTestSuite) TestDHCPProfileToResourceConversion(c *C) {
 
 	for _, d := range badProfiles {
 		resource := DHCPProfileResource{}
-		c.Assert(resource.FromDHCPProfile(d), Not(IsNil))
+		c.Assert(resource.FromDHCPProfileModel(d), Not(IsNil))
 	}
 }
 
@@ -229,7 +229,7 @@ func (r *InterfacesTestSuite) TestDHCPResourceToProfileConversion(c *C) {
 	}
 
 	for _, resource := range goodResoures {
-		d, err := resource.ToDHCPProfile()
+		d, err := resource.ToDHCPProfileModel()
 		c.Assert(err, IsNil)
 		c.Assert(resource.DNSMode, Equals, d.DNSMode)
 		c.Assert(resource.OverrideHostname, Equals, d.OverrideHostname)
@@ -237,7 +237,7 @@ func (r *InterfacesTestSuite) TestDHCPResourceToProfileConversion(c *C) {
 	}
 
 	for _, resource := range badResoures {
-		err, _ := resource.ToDHCPProfile()
+		err, _ := resource.ToDHCPProfileModel()
 		c.Assert(err, Not(IsNil))
 	}
 }
