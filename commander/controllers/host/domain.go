@@ -5,10 +5,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/jinzhu/gorm"
 )
 
 var (
 	DefaultDomain = ""
+)
+
+const (
+	// MaxDomainLen is the maximum character length of domain name
+	MaxDomainLen = 32
 )
 
 func (c *Controller) GetDomain(w http.ResponseWriter, r *http.Request) {
@@ -67,4 +74,28 @@ func (c *Controller) PutDomain(w http.ResponseWriter, r *http.Request) {
 type Domain struct {
 	ID     int64 `json:"-"`
 	Domain string
+}
+
+func (d *Domain) BeforeSave(txn *gorm.DB) error {
+	if len(d.Domain) > MaxDomainLen {
+		return fmt.Errorf("domain cannot be more than %d chars", MaxDomainLen)
+	}
+	// TODO: validate all the chars
+	return nil
+}
+
+//
+// Resources
+//
+
+type DomainResource struct {
+	Domain string
+}
+
+func (d *DomainResource) FromDomainModel(m Domain) {
+	d.Domain = m.Domain
+}
+
+func (d DomainResource) ToDomainModel() Domain {
+	return Domain{Domain: d.Domain}
 }
