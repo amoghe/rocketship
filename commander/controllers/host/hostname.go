@@ -120,3 +120,20 @@ func (h *Hostname) BeforeSave(txn *gorm.DB) error {
 	}
 	return nil
 }
+
+//
+// Resource
+//
+
+type HostnameResource struct {
+	Hostname string
+}
+
+func (h HostnameResource) ToHostnameModel() Hostname {
+	return Hostname{Hostname: h.Hostname}
+}
+
+func (h *HostnameResource) FromHostnameModel(m Hostname) error {
+	h.Hostname = m.Hostname
+	return nil
+}
