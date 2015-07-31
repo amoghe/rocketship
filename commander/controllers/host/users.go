@@ -169,3 +169,32 @@ func (u User) ShadowFileEntry() string {
 
 	return strings.Join(fields, ShadowFileSeparator)
 }
+
+//
+// Resources
+//
+
+type UserResource struct {
+	ID       int64
+	Name     string
+	Password string // WRITE ONLY
+	Comment  string
+}
+
+func (u UserResource) ToUserModel() User {
+	return User{
+		ID:       u.ID,
+		Name:     u.Name,
+		Comment:  u.Comment,
+		Password: u.Password,
+	}
+}
+
+func (u *UserResource) FromUserModel(m User) {
+	u.ID = m.ID
+	u.Name = m.Name
+	u.Comment = m.Comment
+
+	// NEVER return the password
+	// u.Password = m.Password
+}
