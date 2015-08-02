@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,83 +25,98 @@ const (
 	SaltSize              = 16
 	ShadowFileSeparator   = ":"
 	PasswordFileSeparator = ":"
+
+	PasswdFilePath = "/etc/passwd"
+	ShadowFilePath = "/etc/shadow"
 )
 
 var (
-	defaultUsers = []User{
+	defaultUsers = []DefaultUser{
 		//   name          comment      uid    group          homedir
-		{
+		{User: User{
 			Name:    "root",
 			Comment: "Superuser",
 			Uid:     0,
 			Gid:     defaultGroups["root"],
 			Homedir: "/root",
-		},
-		{
+		}},
+		{User: User{
 			Name:    "daemon",
 			Comment: "",
 			Uid:     1,
 			Gid:     defaultGroups["daemon"],
 			Homedir: "/usr/sbin",
-		},
-		{
+		}},
+		{User: User{
 			Name:    "bin",
 			Comment: "",
 			Uid:     2,
 			Gid:     defaultGroups["bin"],
 			Homedir: "/bin",
-		},
-		{
+		}},
+		{User: User{
 			Name:    "sys",
 			Comment: "",
 			Uid:     3,
 			Gid:     defaultGroups["sys"],
 			Homedir: "/dev",
-		},
-		{
+		}},
+		{User: User{
 			Name:    "www-data",
 			Comment: "",
 			Uid:     33,
 			Gid:     defaultGroups["www-data"],
 			Homedir: "/var/www",
-		},
-		{
+		}},
+		{User: User{
 			Name:    "libuuid",
 			Comment: "",
 			Uid:     100,
 			Gid:     defaultGroups["libuuid"],
 			Homedir: "/var/lib/uuid",
-		},
-		{
+		}},
+		{User: User{
 			Name:    "syslog",
 			Comment: "",
 			Uid:     101,
 			Gid:     defaultGroups["syslog"],
 			Homedir: "/home/syslog",
-		},
-		{
+		}},
+		{User: User{
 			Name:    "messagebus",
 			Comment: "",
 			Uid:     102,
 			Gid:     defaultGroups["messagebus"],
 			Homedir: "/var/run/dbus",
-		},
-		{
+		}},
+		{User: User{
 			Name:    "sshd",
 			Comment: "SSH daemon",
 			Uid:     105,
 			Gid:     defaultGroups["nogroup"],
 			Homedir: "/var/run/sshd",
-		},
-		{
+		}},
+		{User: User{
 			Name:    "nobody",
 			Comment: "",
 			Uid:     65534,
 			Gid:     defaultGroups["nogroup"],
 			Homedir: "/nonexistent",
-		},
+		}},
 	}
 )
+
+// GetSystemUser returns a user struct populated with the details of a default ("system")
+// user. This is used by other modules to query what uid/gid they should run their programs with.
+func GetSystemUser(name string) (User, error) {
+
+	for _, user := range defaultUsers {
+		if name == user.Name {
+			return user.User, nil
+		}
+	}
+	return User{}, fmt.Errorf("No such user")
+}
 
 //
 // File generators
@@ -242,7 +258,7 @@ func (u User) PasswdFileEntry() string {
 
 func (u User) ShadowFileEntry() string {
 	lastUpdateDays := u.UpdatedAt.Unix() / int64(time.Hour*24)
-	fields := []string{
+	return strings.Join([]string{
 		u.Name,
 		u.HashedPassword,
 		fmt.Sprintf("%d", lastUpdateDays),
@@ -252,9 +268,40 @@ func (u User) ShadowFileEntry() string {
 		"",      // TODO: (inactive)
 		"",      // TODO: (expire)
 		"",      // NYI   (reserved, future)
-	}
+	}, ShadowFileSeparator)
+}
 
-	return strings.Join(fields, ShadowFileSeparator)
+// DefaultUser wraps around the User model to provide additional functionality.
+// These are not intended to be persisted to the DB, they exist so that we can treat built-in
+// users (baked into the os) specially.
+type DefaultUser struct {
+	User
+}
+
+func (d DefaultUser) PasswdFileEntry() string {
+	return strings.Join([]string{
+		d.Name,
+		"x",
+		strconv.Itoa(int(d.Uid)),
+		strconv.Itoa(int(d.Gid)),
+		d.Comment,
+		d.Homedir,
+		"/bin/nologin", // not allowed to log in
+	}, PasswordFileSeparator)
+}
+
+func (d DefaultUser) ShadowFileEntry() string {
+	return strings.Join([]string{
+		d.Name,
+		"*", // not allowed to login
+		"15785",
+		"0",     // TODO: ???
+		"99999", // TODO: ()
+		"7",     // TODO: (warn)
+		"",      // TODO: (inactive)
+		"",      // TODO: (expire)
+		"",      // NYI   (reserved, future)
+	}, ShadowFileSeparator)
 }
 
 //
