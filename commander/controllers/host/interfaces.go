@@ -175,6 +175,30 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 		return "", err
 	}
 
+	// chunk up a slice of strings. [a, b, c, d, e, f] => [a, b,], [c, d], [e, f]
+	chunkSlice := func(s []string, chunkSize int) (ret [][]string) {
+		if chunkSize >= len(s) {
+			return append(ret, s)
+		}
+
+		start := 0
+		end := 0
+
+		for {
+			start = end
+			end = start + chunkSize
+
+			if end >= len(s) {
+				ret = append(ret, s[start:])
+				return
+			}
+
+			ret = append(ret, s[start:end])
+		}
+
+		return
+	}
+
 	sectionForSlice := func(indent int, clause string, elems []string) string {
 		var (
 			lines     = []string{}

@@ -72,26 +72,3 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err.Error())))
 }
-
-func chunkSlice(s []string, chunkSize int) (ret [][]string) {
-	if chunkSize >= len(s) {
-		return append(ret, s)
-	}
-
-	start := 0
-	end := 0
-
-	for {
-		start = end
-		end = start + chunkSize
-
-		if end >= len(s) {
-			ret = append(ret, s[start:])
-			return
-		}
-
-		ret = append(ret, s[start:end])
-	}
-
-	return
-}
