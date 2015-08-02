@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
@@ -121,6 +122,34 @@ func GetSystemUser(name string) (User, error) {
 //
 // File generators
 //
+
+func (c *Controller) RewritePasswdFile() error {
+	contents, err := c.passwdFileContents()
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(PasswdFilePath, contents, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Controller) RewriteShadowFile() error {
+	contents, err := c.shadowFileContents()
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(ShadowFilePath, contents, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (c *Controller) passwdFileContents() ([]byte, error) {
 	var (
