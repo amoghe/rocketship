@@ -10,7 +10,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 
-	"rocketship/commander/controllers/host"
+	"rocketship/commander/modules/host"
 )
 
 type Controller struct {
