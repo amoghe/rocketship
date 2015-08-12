@@ -178,7 +178,7 @@ func (c *Crashcorder) extractCoreFileInfo(name string) (coreInfo map[string]stri
 
 func (c *Crashcorder) sendRadioMessage(subj string, body string) error {
 	msg := radio.MessageRequest{
-		Severity: "WARN",
+		Severity: radio.LevelWarn,
 		Subject:  subj,
 		Body:     body,
 	}
@@ -189,7 +189,7 @@ func (c *Crashcorder) sendRadioMessage(subj string, body string) error {
 	}
 
 	resp, err := http.Post(
-		"http://"+c.RadioConnectAddr.String()+"/notify",
+		"http://"+c.RadioConnectAddr.String()+radio.EmailEndpoint,
 		"application/json",
 		bytes.NewBuffer(msgjson))
 	if err != nil {
