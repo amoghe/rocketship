@@ -34,23 +34,27 @@ var (
 	}
 )
 
-type Crashcorder struct {
-	CoresDirectory    string
+// Config holds the configuration for the crashcorder
+type Config struct {
 	CorePatternTokens []string
+	CoresDirectory    string
 	RadioConnectAddr  net.TCPAddr
-	Logger            *log.Logger
+}
+
+// Crashcorder holds all the state for an instance of the crash detector.
+type Crashcorder struct {
+	Config Config
+	Logger *log.Logger
 
 	stopChan chan bool
 	doneChan chan bool
 	watcher  *inotify.Watcher
 }
 
-func New(coredir string, coretoks []string, connaddr net.TCPAddr, log *log.Logger) *Crashcorder {
+func New(cfg Config, log *log.Logger) *Crashcorder {
 	return &Crashcorder{
-		CorePatternTokens: coretoks,
-		CoresDirectory:    coredir,
-		RadioConnectAddr:  connaddr,
-		Logger:            log,
+		Config: cfg,
+		Logger: log,
 
 		stopChan: make(chan bool),
 		doneChan: make(chan bool),
@@ -77,8 +81,8 @@ func (c *Crashcorder) Start() error {
 
 	c.watcher = watcher
 
-	c.Logger.Println("Watching dir", c.CoresDirectory)
-	err = watcher.AddWatch(c.CoresDirectory, inotify.IN_CREATE)
+	c.Logger.Println("Watching dir", c.Config.CoresDirectory)
+	err = watcher.AddWatch(c.Config.CoresDirectory, inotify.IN_CREATE)
 	if err != nil {
 		return err
 	}
@@ -87,13 +91,7 @@ func (c *Crashcorder) Start() error {
 	// so that we don't miss any notifications
 	go c.watchForCreates()
 
-	f, err := os.Open(KernelCorePatternFilePath)
-	if err != nil {
-		return err
-	}
-
-	f.Write([]byte(strings.Join(c.CorePatternTokens, PatternDelimiter)))
-	f.Close()
+	c.configureKernelCorePattern()
 
 	return nil
 }
@@ -116,6 +114,17 @@ func (c *Crashcorder) Wait() {
 //
 //  Helpers
 //
+
+func (c *Crashcorder) configureKernelCorePattern() error {
+	f, err := os.Open(KernelCorePatternFilePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	f.Write([]byte(strings.Join(c.Config.CorePatternTokens, PatternDelimiter)))
+	return nil
+}
 
 func (c *Crashcorder) watchForCreates() {
 	c.Logger.Println("Starting watch for dir activity")
@@ -159,13 +168,13 @@ func (c *Crashcorder) handleCoreFile(name string) error {
 func (c *Crashcorder) extractCoreFileInfo(name string) (coreInfo map[string]string, err error) {
 	toks := strings.Split(name, PatternDelimiter)
 
-	if len(toks) != len(c.CorePatternTokens) {
+	if len(toks) != len(c.Config.CorePatternTokens) {
 		err = fmt.Errorf("Unexpected number of tokens in core file")
 		return
 	}
 
 	coreInfo = make(map[string]string)
-	for i, str := range c.CorePatternTokens {
+	for i, str := range c.Config.CorePatternTokens {
 		reason, ok := PatternTokenToString[str]
 		if !ok {
 			fmt.Println("Unknown token in core pattern", str)
@@ -189,7 +198,7 @@ func (c *Crashcorder) sendRadioMessage(subj string, body string) error {
 	}
 
 	resp, err := http.Post(
-		"http://"+c.RadioConnectAddr.String()+radio.EmailEndpoint,
+		"http://"+c.Config.RadioConnectAddr.String()+radio.EmailEndpoint,
 		"application/json",
 		bytes.NewBuffer(msgjson))
 	if err != nil {

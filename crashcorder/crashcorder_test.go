@@ -44,12 +44,7 @@ func (s *TestSuite) TestHandleCoreFile(c *C) {
 	testAddr := testServer.Listener.Addr()
 	radioAddr, err := net.ResolveTCPAddr(testAddr.Network(), testAddr.String())
 
-	cc := New(
-		"/tmp", // dummy
-		[]string{"%e", "%p", "%s", "%t"},
-		*radioAddr,
-		log.New(ioutil.Discard, "", log.LstdFlags),
-	)
+	cc := New(Config{[]string{"%e", "%p", "%s", "%t"}, "/tmp", *radioAddr}, log.New(ioutil.Discard, "", log.LstdFlags))
 	err = cc.handleCoreFile("foo_bar_baz_quz")
 	c.Assert(err, IsNil)
 
