@@ -15,6 +15,8 @@ const (
 	LevelInfo  = "INFO"
 	LevelWarn  = "WARN"
 	LevelError = "ERROR"
+
+	EmailEndpoint = "/email"
 )
 
 // MessageRequest contains fields of the message to be sent. This structure is used
@@ -38,7 +40,7 @@ func New(c Config) *Radio {
 		config: c,
 	}
 
-	r.mux.Post("/email", r.HandleEmailRequest)
+	r.mux.Post(EmailEndpoint, r.HandleEmailRequest)
 
 	return &r
 }
