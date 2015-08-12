@@ -104,6 +104,16 @@ var (
 			Gid:     defaultGroups["nogroup"],
 			Homedir: "/nonexistent",
 		}},
+		//
+		// Rocketship users
+		//
+		{User: User{
+			Name:    "radio",
+			Comment: "SSH daemon",
+			Uid:     1001,
+			Gid:     defaultGroups["radio"],
+			Homedir: "/tmp",
+		}},
 	}
 )
 
