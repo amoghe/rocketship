@@ -18,6 +18,10 @@ type Controller struct {
 	mux *web.Mux
 }
 
+func NewController(db *gorm.DB) *Controller {
+	return &Controller{db: db, mux: web.New()}
+}
+
 //
 // File generators
 //
