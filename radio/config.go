@@ -28,6 +28,6 @@ type ProcessSettings struct {
 
 // Config is a shell structure to hold the various configs needed by the Radio service
 type Config struct {
-	EmailConfig     EmailSettings
-	ProcessSettings ProcessSettings
+	EmailConfig   EmailSettings
+	ProcessConfig ProcessSettings
 }
