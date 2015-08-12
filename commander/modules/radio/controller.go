@@ -15,6 +15,10 @@ import (
 	"rocketship/radio"
 )
 
+const (
+	RadioPort = 12345
+)
+
 type Controller struct {
 	db  *gorm.DB
 	mux *web.Mux
@@ -267,7 +271,7 @@ func (c *Controller) radioConfFileContents() ([]byte, error) {
 		ProcessConfig: radio.ProcessSettings{
 			User:       "radio",
 			Group:      "radio",
-			ListenPort: 55554,
+			ListenPort: RadioPort,
 		},
 	}
 
