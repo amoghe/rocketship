@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jinzhu/gorm"
+
 	"rocketship/commander/modules/radio"
 	"rocketship/crashcorder"
 )
@@ -19,7 +21,7 @@ const (
 type Controller struct {
 }
 
-func NewController() *Controller {
+func NewController(*gorm.DB) *Controller {
 	return &Controller{}
 }
 
