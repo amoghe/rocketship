@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/mail"
+	"os"
 	"strconv"
 
 	"github.com/jinzhu/gorm"
@@ -17,6 +18,9 @@ import (
 
 const (
 	RadioPort = 12345
+
+	RadioConfDir  = "/etc/radio"
+	RadioConfFile = RadioConfDir + "/radio.conf"
 )
 
 type Controller struct {
@@ -227,6 +231,27 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 //
 
 func (c *Controller) RewriteRadioConfFile() error {
+	// ensure radio conf dir with appropriate perms
+	if _, err := os.Stat(RadioConfDir); os.IsNotExist(err) {
+		os.Mkdir(RadioConfDir, 0750)
+	}
+
+	// write file
+	contents, err := c.radioConfFileContents()
+	if err != nil {
+		return fmt.Errorf("Failed to generate config file contents: %s", err)
+	}
+
+	err = ioutil.WriteFile(RadioConfFile, contents, 0644)
+	if err != nil {
+		return fmt.Errorf("Failed to write file: %s", err)
+	}
+
+	radioUsr, _ := host.GetSystemUser("radio")
+	for _, f := range []string{RadioConfDir, RadioConfFile} {
+		os.Chown(f, int(radioUsr.Uid), int(radioUsr.Gid))
+	}
+
 	return nil
 }
 
@@ -269,8 +294,6 @@ func (c *Controller) radioConfFileContents() ([]byte, error) {
 			AuthPassword:  radioCfg.AuthPassword,
 		},
 		ProcessConfig: radio.ProcessSettings{
-			User:       "radio",
-			Group:      "radio",
 			ListenPort: RadioPort,
 		},
 	}
