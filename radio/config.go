@@ -21,8 +21,6 @@ type EmailSettings struct {
 
 // ProcessSettings holds the configuration pertinent to running the process
 type ProcessSettings struct {
-	User       string
-	Group      string
 	ListenPort uint16
 }
 
