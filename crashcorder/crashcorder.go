@@ -56,8 +56,8 @@ func New(cfg Config, log *log.Logger) *Crashcorder {
 		Config: cfg,
 		Logger: log,
 
-		stopChan: make(chan bool),
-		doneChan: make(chan bool),
+		stopChan: make(chan bool, 1),
+		doneChan: make(chan bool, 1),
 	}
 }
 
@@ -91,7 +91,7 @@ func (c *Crashcorder) Start() error {
 	// so that we don't miss any notifications
 	go c.watchForCreates()
 
-	c.configureKernelCorePattern()
+	// c.configureKernelCorePattern()
 
 	return nil
 }
@@ -99,15 +99,19 @@ func (c *Crashcorder) Start() error {
 // Stop initiates the shutdown of the crashcorder watcher. Optionally it blocks
 // till it is fully stopped.
 func (c *Crashcorder) Stop(wait bool) {
+	c.Logger.Println("Stopping watch routine")
 	c.stopChan <- true
 
 	if wait {
 		c.Wait()
 	}
+
+	c.Logger.Println("Stopped crashcorder")
 }
 
-// Wait will block till the crashcorder is fully stopped
+// Wait blocks till the crashcorder is fully stopped
 func (c *Crashcorder) Wait() {
+	c.Logger.Println("Blocking till watch routine has stopped")
 	<-c.doneChan
 }
 
@@ -128,17 +132,22 @@ func (c *Crashcorder) configureKernelCorePattern() error {
 
 func (c *Crashcorder) watchForCreates() {
 	c.Logger.Println("Starting watch for dir activity")
-	select {
-	case event := <-c.watcher.Event:
-		c.Logger.Println("Received event for file", event.Name)
-		if err := c.handleCoreFile(event.Name); err != nil {
-			c.Logger.Println("Error handling core file:", err)
+
+loop:
+	for {
+		select {
+		case <-c.stopChan:
+			c.Logger.Println("Watch routine requested to stop")
+			break loop
+		case event := <-c.watcher.Event:
+			c.Logger.Println("Received event for file", event.Name)
+			if err := c.handleCoreFile(event.Name); err != nil {
+				c.Logger.Println("Error handling core file:", err)
+			}
+		case error := <-c.watcher.Error:
+			c.Logger.Println("Watcher error:", error)
+			// possibly restart?
 		}
-	case error := <-c.watcher.Error:
-		c.Logger.Println("Watcher error:", error)
-		// possibly restart?
-	case <-c.stopChan:
-		c.Logger.Println("Stopping watch routine")
 	}
 
 	c.doneChan <- true
