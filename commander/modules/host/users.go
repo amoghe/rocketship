@@ -114,6 +114,14 @@ var (
 			Gid:     defaultGroups["radio"],
 			Homedir: "/tmp",
 		}},
+		// write config file
+		{User: User{
+			Name:    "crashcorder",
+			Comment: "crash reporter daemon",
+			Uid:     1002,
+			Gid:     defaultGroups["crashcorder"],
+			Homedir: "/tmp",
+		}},
 	}
 )
 
