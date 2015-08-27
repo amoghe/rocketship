@@ -231,7 +231,7 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 //
 
 func (c *Controller) RewriteRadioConfFile() error {
-	// ensure radio conf dir with appropriate perms
+	// ensure radio conf dir
 	if _, err := os.Stat(RadioConfDir); os.IsNotExist(err) {
 		os.Mkdir(RadioConfDir, 0750)
 	}
@@ -248,6 +248,8 @@ func (c *Controller) RewriteRadioConfFile() error {
 	}
 
 	radioUsr, _ := host.GetSystemUser("radio")
+
+	// ensure dir and file perms
 	for _, f := range []string{RadioConfDir, RadioConfFile} {
 		os.Chown(f, int(radioUsr.Uid), int(radioUsr.Gid))
 	}
