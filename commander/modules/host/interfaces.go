@@ -15,6 +15,9 @@ const (
 	ModeDHCP   = "dhcp"
 	ModeStatic = "static"
 
+	InterfacesFilePath   = "/etc/network/interfaces"
+	DhclientConfFilePath = "/etc/dhcp/dhclient.conf"
+
 	// When DHCP server provides us DNS entries, how to treat them
 	ModeAppend   = "append"
 	ModePrepend  = "prepend"
@@ -151,7 +154,7 @@ func (c *Controller) dhclientConfFileContents() ([]byte, error) {
 	c.db.Where(InterfaceConfig{Mode: ModeDHCP}).Find(&ifaces)
 	for _, iface := range ifaces {
 		if str, err := c.dhconfFileSection(iface); err != nil {
-			fmt.Errorf("ERROR:", err)
+			fmt.Errorf("ERROR: %s", err)
 			// TODO: LOG
 			return []byte{}, err
 		} else {
@@ -195,8 +198,6 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 
 			ret = append(ret, s[start:end])
 		}
-
-		return
 	}
 
 	sectionForSlice := func(indent int, clause string, elems []string) string {
@@ -319,7 +320,6 @@ func (i *InterfaceConfig) BeforeSave(txn *gorm.DB) error {
 	default:
 		return fmt.Errorf("Invalid mode (%s) set for interface %s", i.Mode, i.Name)
 	}
-	return nil
 }
 
 func (d *DHCPProfile) BeforeCreate(txn *gorm.DB) error {

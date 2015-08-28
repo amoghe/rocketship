@@ -9,13 +9,12 @@ import (
 )
 
 const (
+	// Prefix under which all the endpoints reside
+	URLPrefix = "/host"
 	// Endpoint at which the hostname can be configured
-	EHostname = "/hostname"
+	EHostname = URLPrefix + "/hostname"
 	// Endpoint at which domain can be configured
-	EDomain = "/domain"
-
-	InterfacesFilePath   = "/etc/network/interfaces"
-	DhclientConfFilePath = "/etc/dhcp/dhclient.conf"
+	EDomain = URLPrefix + "/domain"
 )
 
 type Controller struct {
