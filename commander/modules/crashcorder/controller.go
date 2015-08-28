@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 
@@ -16,6 +17,8 @@ import (
 )
 
 const (
+	URLPrefix = "/crashcorder"
+
 	KernelCorePatternFilePath = "/proc/sys/kernel/core_pattern"
 	CoresDirPath              = "/cores"
 	CorePattern               = "%e_%p_%u_%g_%s_%t"
@@ -29,6 +32,17 @@ type Controller struct {
 
 func NewController(*gorm.DB) *Controller {
 	return &Controller{}
+}
+
+// ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
+func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// No handlers (yet)
+	return
+}
+
+// RoutePrefix returns the prefix under which this router handles endpoints
+func (c *Controller) RoutePrefix() string {
+	return URLPrefix
 }
 
 func (c *Controller) RewriteCrashcorderConfigFile() error {
