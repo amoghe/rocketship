@@ -17,6 +17,8 @@ import (
 )
 
 const (
+	URLPrefix = "/radio"
+
 	RadioPort = 12345
 
 	RadioConfDir  = "/etc/radio"
@@ -30,6 +32,17 @@ type Controller struct {
 
 func NewController(db *gorm.DB) *Controller {
 	return &Controller{db: db, mux: web.New()}
+}
+
+// ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
+func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// No handlers (yet)
+	return
+}
+
+// RoutePrefix returns the prefix under which this router handles endpoints
+func (c *Controller) RoutePrefix() string {
+	return URLPrefix
 }
 
 //
