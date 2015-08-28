@@ -13,6 +13,14 @@ import (
 	"github.com/zenazn/goji/web"
 )
 
+const (
+	// Prefix under which this controller registers endpoints
+	URLPrefix = "/ssh"
+
+	// ESshConfig is the endpoint at which configuration for SSH is accessed
+	ESshConfig = URLPrefix + "/config"
+)
+
 type Controller struct {
 	db  *gorm.DB
 	mux *web.Mux
@@ -24,10 +32,20 @@ func NewController(db *gorm.DB) *Controller {
 		db:  db,
 	}
 
-	c.mux.Get("/ssh_config", c.GetSshConfig)
-	c.mux.Put("/ssh_config", c.PutSshConfig)
+	c.mux.Get(ESshConfig, c.GetSshConfig)
+	c.mux.Put(ESshConfig, c.PutSshConfig)
 
 	return &c
+}
+
+// ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
+func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	c.mux.ServeHTTP(w, r)
+}
+
+// RoutePrefix returns the prefix under which this router handles endpoints
+func (c *Controller) RoutePrefix() string {
+	return URLPrefix
 }
 
 //
