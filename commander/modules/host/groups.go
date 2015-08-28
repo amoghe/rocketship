@@ -1,8 +1,14 @@
 package host
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"strings"
+)
+
+const (
+	GroupsFilePath = "/etc/groups"
 )
 
 var (
@@ -43,13 +49,39 @@ var (
 	}
 )
 
-func GroupFileEntry(name string, id uint32, users []User) string {
+func (c *Controller) RewriteGroupsFile() error {
+	contents, err := c.groupsFileContents()
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(GroupsFilePath, contents, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Controller) groupsFileContents() ([]byte, error) {
+	contents := bytes.Buffer{}
+	for group, id := range defaultGroups {
+		contents.WriteString(groupFileEntry(group, id, []User{}))
+		contents.WriteString("\n")
+	}
+	return contents.Bytes(), nil
+}
+
+func groupFileEntry(name string, id uint32, users []User) string {
 	var usersList []string
 	for _, u := range users {
 		usersList = append(usersList, u.Name)
 	}
 
-	userNames := strings.Join(usersList, ",")
+	userNames := ""
+	if len(users) > 0 {
+		userNames = strings.Join(usersList, ",")
+	}
 
 	return fmt.Sprintf("%s:%s:%d:%s",
 		name,
