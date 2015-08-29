@@ -465,16 +465,12 @@ func (r DHCPProfileResource) ToDHCPProfileModel() (DHCPProfile, error) {
 // DB Seed
 //
 
-func SeedInterface(db *gorm.DB) {
+func (c *Controller) seedInterface() {
 	var (
 		profile = DHCPProfile{ID: 1}
 		iface   = InterfaceConfig{Name: "eth0", Mode: ModeDHCP, DHCPProfileID: 1}
 	)
 
-	// Ensure latest schema
-	db.AutoMigrate(&DHCPProfile{})
-	db.AutoMigrate(&InterfaceConfig{})
-
-	db.FirstOrCreate(&profile, profile)
-	db.FirstOrCreate(&iface, iface)
+	c.db.FirstOrCreate(&profile, profile)
+	c.db.FirstOrCreate(&iface, iface)
 }

@@ -20,6 +20,7 @@ func (ts *UsersTestSuite) SetUpTest(c *C) {
 
 	ts.controller = NewController(&ts.db)
 	ts.controller.MigrateDB()
+	ts.controller.SeedDB()
 }
 
 func (ts *UsersTestSuite) TearDownTest(c *C) {
@@ -112,7 +113,9 @@ func (ts *UsersTestSuite) TestPasswdFileContents(c *C) {
 	c.Assert(err, IsNil)
 
 	tokens := strings.Split(string(f), "\n")
-	c.Assert(tokens, HasLen, len(users)+len(defaultUsers)+1) // trailing newline causes one additional token
+	// trailing newline causes one additional token
+	// seed user in db causes one additional token
+	c.Assert(tokens, HasLen, len(users)+len(defaultUsers)+1+1)
 }
 
 func (ts *UsersTestSuite) TestShadowFileContents(c *C) {
@@ -135,5 +138,7 @@ func (ts *UsersTestSuite) TestShadowFileContents(c *C) {
 	c.Assert(err, IsNil)
 
 	tokens := strings.Split(string(f), "\n")
-	c.Assert(tokens, HasLen, len(users)+len(defaultUsers)+1) // trailing \n causes additional token
+	// trailing \n causes additional token
+	// seed user in db causes one additional token
+	c.Assert(tokens, HasLen, len(users)+len(defaultUsers)+1+1)
 }

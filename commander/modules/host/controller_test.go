@@ -10,6 +10,7 @@ import (
 	"github.com/jinzhu/gorm"
 
 	_ "fmt"
+
 	_ "github.com/mattn/go-sqlite3"
 	. "gopkg.in/check.v1"
 )
@@ -42,6 +43,7 @@ func (ts *ControllerTestSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 	ts.db = db
 	ts.controller.MigrateDB()
+	ts.controller.SeedDB()
 }
 
 func (ts *ControllerTestSuite) TearDownTest(c *C) {

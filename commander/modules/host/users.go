@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/amoghe/go-crypt"
-	"github.com/jinzhu/gorm"
 )
 
 const (
@@ -384,6 +383,6 @@ func (u *UserResource) FromUserModel(m User) {
 // DB Seed
 //
 
-func SeedUsers(db *gorm.DB) {
-	db.AutoMigrate(&User{})
+func (c *Controller) seedUsers() {
+	c.db.FirstOrCreate(&User{Name: "admin", Password: "password"})
 }

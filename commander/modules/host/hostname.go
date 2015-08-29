@@ -141,7 +141,6 @@ func (h *HostnameResource) FromHostnameModel(m Hostname) {
 // DB Seed
 //
 
-func SeedHostname(db *gorm.DB) {
-	db.AutoMigrate(&Hostname{})
-	db.FirstOrCreate(&Hostname{Hostname: DefaultHostname})
+func (c *Controller) seedHostname() {
+	c.db.FirstOrCreate(&Hostname{Hostname: DefaultHostname})
 }

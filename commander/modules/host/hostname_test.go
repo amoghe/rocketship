@@ -18,6 +18,7 @@ func (ts *HostnameTestSuite) SetUpTest(c *C) {
 
 	ts.controller = NewController(&ts.db)
 	ts.controller.MigrateDB()
+	ts.controller.SeedDB()
 }
 
 func (ts *HostnameTestSuite) TearDownTest(c *C) {

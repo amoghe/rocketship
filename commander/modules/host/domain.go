@@ -104,7 +104,6 @@ func (d DomainResource) ToDomainModel() Domain {
 // DB Seed
 //
 
-func SeedDomain(db *gorm.DB) {
-	db.AutoMigrate(&Domain{})
-	db.FirstOrCreate(&Domain{Domain: DefaultDomain})
+func (c *Controller) seedDomain() {
+	c.db.FirstOrCreate(&Domain{Domain: DefaultDomain})
 }

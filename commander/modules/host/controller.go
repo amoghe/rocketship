@@ -41,16 +41,47 @@ func NewController(db *gorm.DB) *Controller {
 	return &c
 }
 
+// ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
 func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.mux.ServeHTTP(w, r)
 }
 
-func (c *Controller) MigrateDB() {
+// RoutePrefix returns the prefix under which this router handles endpoints
+func (c *Controller) RoutePrefix() string {
+	return URLPrefix
+}
 
-	SeedHostname(c.db)
-	SeedDomain(c.db)
-	SeedInterface(c.db)
-	SeedUsers(c.db)
+func (c *Controller) MigrateDB() {
+	c.db.AutoMigrate(&Hostname{})
+	c.db.AutoMigrate(&Domain{})
+
+	c.db.AutoMigrate(&DHCPProfile{})
+	c.db.AutoMigrate(&InterfaceConfig{})
+
+	c.db.AutoMigrate(&User{})
+}
+
+func (c *Controller) SeedDB() {
+	c.seedHostname()
+	c.seedDomain()
+	c.seedInterface()
+	c.seedUsers()
+}
+
+func (c *Controller) RewriteFiles() error {
+	for _, f := range []func() error{
+		c.RewriteHostnameFile,
+		c.RewritePasswdFile,
+		c.RewriteShadowFile,
+		c.RewriteGroupsFile,
+		c.RewriteInterfacesFile,
+		c.RewriteDhclientConfFile,
+	} {
+		if err := f(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 //
