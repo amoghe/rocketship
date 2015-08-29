@@ -32,7 +32,7 @@ func (ts *SshConfigTestSuite) SetUpTest(c *C) {
 
 	ts.controller = NewController(ts.db)
 	ts.controller.MigrateDB()
-	ts.controller.SeedSshdConfig()
+	ts.controller.SeedDB()
 }
 
 func (ts *SshConfigTestSuite) TearDownTest(c *C) {

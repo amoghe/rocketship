@@ -160,7 +160,7 @@ func (c *Controller) MigrateDB() {
 	c.db.AutoMigrate(&SshConfig{AllowPasswordAuth: true, AllowPubkeyAuth: true})
 }
 
-func (c *Controller) SeedSshdConfig() {
+func (c *Controller) SeedDB() {
 	c.db.FirstOrCreate(&SshConfig{ID: 1, AllowPasswordAuth: true})
 }
 
