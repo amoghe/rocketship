@@ -406,7 +406,7 @@ type RadioConfigResource RadioConfig
 // Seeds
 //
 
-func (c *Controller) SeedRadioConfig() {
+func (c *Controller) MigrateDB() {
 	for _, table := range []interface{}{
 		&RadioConfig{},
 		&InfoRecipient{},
@@ -415,7 +415,9 @@ func (c *Controller) SeedRadioConfig() {
 	} {
 		c.db.AutoMigrate(table)
 	}
+}
 
+func (c *Controller) SeedDB() {
 	// always create one row in the radio config table (singleton row)
 	c.db.FirstOrCreate(&RadioConfig{})
 }

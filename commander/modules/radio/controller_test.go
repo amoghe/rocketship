@@ -41,7 +41,8 @@ func (ts *RadioTestSuite) SetUpTest(c *C) {
 
 	ts.db = db
 	ts.controller = NewController(&ts.db)
-	ts.controller.SeedRadioConfig()
+	ts.controller.MigrateDB()
+	ts.controller.SeedDB()
 }
 
 func (ts *RadioTestSuite) TearDownTest(c *C) {
@@ -57,7 +58,10 @@ func (ts *RadioTestSuite) TearDownTest(c *C) {
 //
 
 func (ts *RadioTestSuite) TestDbSeed(c *C) {
-	ts.controller.SeedRadioConfig()
+	cfg := []RadioConfig{}
+	err := ts.db.Find(&cfg).Error
+	c.Assert(err, IsNil)
+	c.Assert(cfg, HasLen, 1)
 }
 
 func (ts *RadioTestSuite) TestEmailRecipientAdd(c *C) {
