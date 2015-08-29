@@ -29,11 +29,6 @@ func NewController(db *gorm.DB) *Controller {
 	return &Controller{db: db, mux: web.New()}
 }
 
-// DB state
-// TODO: tables to track whether syslog is enabled
-func (c *Controller) MigrateDB() {}
-func (c *Controller) SeedDB()    {}
-
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
 func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.mux.ServeHTTP(w, r)
@@ -48,7 +43,7 @@ func (c *Controller) RoutePrefix() string {
 // File generators
 //
 
-func (c *Controller) RewriteSyslogConfFile() error {
+func (c *Controller) RewriteFiles() error {
 	contents, err := c.syslogConfFileContents()
 	if err != nil {
 		return err
@@ -94,3 +89,11 @@ func (c *Controller) syslogConfFileContents() ([]byte, error) {
 
 	return retbuf.Bytes(), nil
 }
+
+//
+// DB state
+// TODO: tables to track whether syslog is enabled
+//
+
+func (c *Controller) MigrateDB() {}
+func (c *Controller) SeedDB()    {}

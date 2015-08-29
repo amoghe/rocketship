@@ -103,7 +103,7 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 // File generators
 //
 
-func (c *Controller) RewriteSshConfigFile() error {
+func (c *Controller) RewriteFiles() error {
 	return nil
 }
 

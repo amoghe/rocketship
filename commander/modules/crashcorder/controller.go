@@ -45,7 +45,7 @@ func (c *Controller) RoutePrefix() string {
 	return URLPrefix
 }
 
-func (c *Controller) RewriteCrashcorderConfigFile() error {
+func (c *Controller) RewriteFiles() error {
 	// ensure crashcorder dir
 	if _, err := os.Stat(CrashcorderConfDir); os.IsNotExist(err) {
 		err = os.Mkdir(CrashcorderConfDir, 0750)
@@ -98,3 +98,11 @@ func (c *Controller) configureKernelCorePattern() error {
 		return err
 	}
 }
+
+//
+// DB
+// TODO: add DB models/tables to manage whether crashcorder is enabled
+//
+
+func (c *Controller) MigrateDB() {}
+func (c *Controller) SeedDB()    {}

@@ -243,7 +243,7 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 // File generators
 //
 
-func (c *Controller) RewriteRadioConfFile() error {
+func (c *Controller) RewriteFiles() error {
 	// ensure radio conf dir
 	if _, err := os.Stat(RadioConfDir); os.IsNotExist(err) {
 		os.Mkdir(RadioConfDir, 0750)
