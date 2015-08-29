@@ -19,7 +19,7 @@ func Test(t *testing.T) {
 	TestingT(t)
 }
 
-func (ts *CrashcorderTestSuite) TestSyslogConfFile(c *C) {
+func (ts *CrashcorderTestSuite) TestFileContents(c *C) {
 	ctrl := Controller{}
 
 	contents, err := ctrl.crashcorderConfigFileContents()
