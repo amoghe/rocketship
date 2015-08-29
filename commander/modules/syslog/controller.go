@@ -25,8 +25,14 @@ type Controller struct {
 }
 
 func NewController(db *gorm.DB) *Controller {
+	// TODO: endpoints to en/disable the syslog daemon.
 	return &Controller{db: db, mux: web.New()}
 }
+
+// DB state
+// TODO: tables to track whether syslog is enabled
+func (c *Controller) MigrateDB() {}
+func (c *Controller) SeedDB()    {}
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
 func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
