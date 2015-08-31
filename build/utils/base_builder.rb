@@ -1,4 +1,5 @@
 require 'colorize'
+require 'tmpdir'
 
 # Base class from which other 'builder' classes can inherit common functionality.
 
@@ -36,7 +37,8 @@ class BaseBuilder
 	# Execute a command using rake 'sh'
 	def execute!(cmd, sudo=true, verbose=true)
 		cmd = sudo ? "sudo #{cmd}" : cmd
-		sh cmd, :verbose => verbose
+		puts cmd if verbose
+		`#{cmd}`
 	end
 
 	# Insufficient perms for the build

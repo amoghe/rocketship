@@ -2,13 +2,15 @@ require 'open3'
 require 'pp'
 
 require_relative 'base_builder'
+require_relative 'disk_builder' # So we access its constants
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Module that contains the routines used to build images.
 #
 class ImageBuilder < BaseBuilder
 
-	UBUNTU_RELEASE       = 'trusty' # 14.04 Trusty Tahr
+	UBUNTU_RELEASE	= '14_04_03'
+	IMAGE_VERSION 	= '0.3.0'
 
 	ESSENTIAL_ADDON_PKGS = [
 		'dbus'           ,
@@ -29,20 +31,15 @@ class ImageBuilder < BaseBuilder
 	]
 
 	CWD = File.dirname(__FILE__)
+	BUILD_DIR_PATH = File.expand_path(File.join(CWD, '..'))
 
-	WAREHOUSE_DIR  = File.join(CWD, 'warehouse')
-	CACHED_ROOTFS  = File.join(CWD, 'misc', "#{UBUNTU_RELEASE}_rootfs.tgz")
+	CACHED_ROOTFS_TGZ_NAME = "ubuntu_#{UBUNTU_RELEASE}.tar.gz"
+	CACHED_ROOTFS_TGZ_PATH = File.join(BUILD_DIR_PATH, 'cache', CACHED_ROOTFS_TGZ_NAME)
 
-	AERO_VERSION   = '0.2.0'
+	ROCKETSHIP_ROOTFS_DIR_PATH = File.join(BUILD_DIR_PATH, 'rootfs')
 
-	AERO_IMAGE_FILE_NAME = 'system.img'
-	AERO_IMAGE_FILE_PATH = File.join(CWD, 'hangar', AERO_IMAGE_FILE_NAME)
-
-	AERO_COMPONENTS = [
-		'commander',
-		'crashcorder',
-		'radio',
-	]
+	ROCKETSHIP_IMAGE_FILE_NAME = 'rocketship.img'
+	ROCKETSHIP_IMAGE_FILE_PATH = File.join(BUILD_DIR_PATH, ROCKETSHIP_IMAGE_FILE_NAME)
 
 	attr_reader :rootfs
 	attr_reader :debug
@@ -63,33 +60,28 @@ class ImageBuilder < BaseBuilder
 		self.ensure_root_privilege
 
 		banner('Build options')
-		info("Debug packages          : #{debug}")
-		info("Dist upgrade the rootfs : #{upgrade}")
+		info("Install additional packages	: #{debug}")
+		info("Dist upgrade the rootfs		: #{upgrade}")
 		sleep(1) # Time to register
 
 		self.on_mounted_tmpfs do |tempdir|
 
 			begin
-				failed = false
-
 				banner("Unpacking rootfs (from #{rootfs})")
 				self.extract_rootfs(tempdir)
 
 				banner('Update rootfs')
 				self.install_additional_packages(tempdir)
 
-				banner('Customize image (with aerodrome components)')
+				banner('Customize image (with rocketship components)')
 				self.customize(tempdir)
 
 				banner('Packaging the image')
 				self.package(tempdir)
-
 			rescue => e
-				failed = true
 				warn(e)
 				banner('Failed')
-				pp e.backtrace unless (e.is_a?(ArgumentError) or \
-				e.is_a?(BuildHelper::PermissionError))
+				pp e.backtrace unless (e.is_a?(ArgumentError) or e.is_a?(PermissionError))
 			else
 				banner('Done')
 			end
@@ -136,12 +128,12 @@ class ImageBuilder < BaseBuilder
 
 		chroot_cmds = [
 
-			'mkdir -p #{CONFIG_PARTITION_MOUNT}',
+			"mkdir -p #{DiskBuilder::CONFIG_PARTITION_MOUNT}",
 
 			# put the version into the image (ctime is build time :-D)
-			"echo #{AERO_VERSION} > /etc/aero_version",
+			"echo #{ROCKETSHIP_VERSION} > /etc/aero_version",
 
-			# fake some nameservers so that apt will work
+			# add nameservers so that apt will work
 			'echo nameserver 8.8.8.8 > /etc/resolv.conf',
 
 			# ensure no services are started in the chroot
@@ -194,7 +186,6 @@ class ImageBuilder < BaseBuilder
 				# make the subshell print it so it shows in our output (which is being
 				# provided by the thread draining its stdout).
 				info("[Step #{num+1} of #{chroot_cmds.length}] #{cmd}")
-				#sin.puts("echo -e \"\n[Step #{num+1} of #{chroot_cmds.length}] #{cmd}\n\" ")
 				sin.puts(cmd)
 			end
 
@@ -203,8 +194,7 @@ class ImageBuilder < BaseBuilder
 			res = stat.value
 
 			if not res.success?
-				warn('ERROR while installing additional packages in rootfs. '\
-				'(stderr follows)')
+				warn('ERROR while installing additional packages in rootfs, stderr output:')
 				warn(serr.read)
 				raise RuntimeError, 'rootfs customization failed'
 			end
@@ -220,7 +210,7 @@ class ImageBuilder < BaseBuilder
 	def customize(rootfs_dir)
 		info('Moving parts from warehouse into target')
 		# Copy everything from the warehouse dir (note trailing '.' in src path)
-		FileUtils.cp_r(File.join(WAREHOUSE_DIR, '.'), rootfs_dir)
+		FileUtils.cp_r(File.join(ROCKETSHIP_ROOTFS_DIR_PATH, '.'), rootfs_dir)
 		# We need to perform the copy as root, since the dest dir is owned by root.
 		#execute!("cp -r #{File.join(WAREHOUSE_DIR, '.')} #{rootfs_dir}")
 	end
@@ -233,14 +223,10 @@ class ImageBuilder < BaseBuilder
 		# orig_uid = ENV['SUDO_UID']
 		# orig_gid = ENV['SUDO_GID']
 
-		# if orig_uid and orig_gid
-		#   execute!("chown #{orig_uid}:#{orig_gid} #{AERO_IMAGE_FILE_PATH}")
-		# end
-
 		cmd = [ 'tar ',
 			'--create',
 			'--gzip',
-			"--file=#{AERO_IMAGE_FILE_PATH}",
+			"--file=#{ROCKETSHIP_IMAGE_FILE_PATH}",
 			# TODO: If we preserve perms, we need to keep commander UIDs in sync
 			# with those from the rootfs (and packages we pull in).
 			#'--owner=0',
