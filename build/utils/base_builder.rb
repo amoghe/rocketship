@@ -50,12 +50,9 @@ class BaseBuilder
 	class PermissionError < StandardError ; end
 
 	def ensure_root_privilege
-		Process.euid = 0
+		banner('Triggerring sudo')
+		execute!('date', true)
 		true
-	rescue Errno::EPERM => e
-		raise PermissionError, ('Cannot obtain root privileges. The build ' \
-		'process requires elevated privileges. Consider '\
-		'rerunning with "sudo".')
 	end
 
 	def on_mounted_tmpfs(size='1G')
@@ -63,11 +60,10 @@ class BaseBuilder
 			begin
 				banner('Mounting tmpfs')
 				# 1G should be sufficient. Our image shouldn't be larger than that ;)
-				execute!("mount -t tmpfs -o size=#{size} debootstrap-tmpfs #{tempdir}",
-				false)
+				execute!("mount -t tmpfs -o size=#{size} debootstrap-tmpfs #{tempdir}",	true)
 				yield tempdir if block_given?
 			ensure
-				execute!("umount #{tempdir}", false)
+				execute!("umount #{tempdir}", true)
 			end
 		end
 	end

@@ -112,7 +112,7 @@ class ImageBuilder < BaseBuilder
 			.flatten  \
 			.join(' '),
 
-			false)
+			true) # Needs sudo due to tarball containing special device files
 			nil
 	end
 
@@ -169,8 +169,7 @@ class ImageBuilder < BaseBuilder
 			'dpkg-divert --local --rename --remove /sbin/initctl',
 		].reject(&:empty?)
 
-		# TODO: flip the loops (for better output messages)
-		Open3.popen3("chroot #{rootfs_dir}") do |sin, sout, serr, stat|
+		Open3.popen3("sudo chroot #{rootfs_dir}") do |sin, sout, serr, stat|
 
 			# Print stuff for liveness
 			Thread.new { sout.each { |line| puts line } }
@@ -179,13 +178,14 @@ class ImageBuilder < BaseBuilder
 			# individual command failures and bail on the first error. Else we
 			# run the risk of proceeding to create a faulty image.
 			sin.puts('set -e')
+			# make the subshell print it so it shows in our output (which is being
+			# provided by the thread draining its stdout).
+			sin.puts('set -x')
 
 			chroot_cmds.each_with_index do |cmd, num|
 				# If its an apt command, run it non interactively
 				cmd = "DEBIAN_FRONTEND=noninteractive #{cmd}" if cmd.include?('apt-get')
-				# make the subshell print it so it shows in our output (which is being
-				# provided by the thread draining its stdout).
-				info("[Step #{num+1} of #{chroot_cmds.length}] #{cmd}")
+				#info("[Step #{num+1} of #{chroot_cmds.length}] #{cmd}")
 				sin.puts(cmd)
 			end
 
@@ -209,10 +209,8 @@ class ImageBuilder < BaseBuilder
 	#
 	def customize(rootfs_dir)
 		info('Moving parts from warehouse into target')
-		# Copy everything from the warehouse dir (note trailing '.' in src path)
-		FileUtils.cp_r(File.join(ROCKETSHIP_ROOTFS_DIR_PATH, '.'), rootfs_dir)
 		# We need to perform the copy as root, since the dest dir is owned by root.
-		#execute!("cp -r #{File.join(WAREHOUSE_DIR, '.')} #{rootfs_dir}")
+		execute!("cp -r #{File.join(ROCKETSHIP_ROOTFS_DIR_PATH, '.')} #{rootfs_dir}")
 	end
 
 	##
@@ -227,8 +225,7 @@ class ImageBuilder < BaseBuilder
 			'--create',
 			'--gzip',
 			"--file=#{ROCKETSHIP_IMAGE_FILE_PATH}",
-			# TODO: If we preserve perms, we need to keep commander UIDs in sync
-			# with those from the rootfs (and packages we pull in).
+			# TODO: preserve perms, else whoever uses the image will have to twidle the perms again.
 			#'--owner=0',
 			#'--group=0',
 			'--preserve-permissions',
@@ -237,7 +234,7 @@ class ImageBuilder < BaseBuilder
 		].join(' ')
 
 		info('Packaging...')
-		execute!(cmd, false)
+		execute!(cmd, true)
 
 		nil
 	end
