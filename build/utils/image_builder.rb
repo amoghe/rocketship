@@ -16,11 +16,11 @@ class ImageBuilder < BaseBuilder
 		'dbus'           ,
 		'iputils-ping'   , # ping
 		'isc-dhcp-client', # dhcp
-		'libsqlite3-dev' , # activerecord
+		#'libsqlite3-dev' , # activerecord
 		'logrotate'      ,
 		'net-tools'      , # ifconfig
 		'rsyslog'        ,
-		'ruby1.9.1'      , # ruby 1.9.3
+		#'ruby1.9.1'      , # ruby 1.9.3
 		'openssh-server' ,
 	]
 
@@ -130,8 +130,8 @@ class ImageBuilder < BaseBuilder
 
 			"mkdir -p #{DiskBuilder::CONFIG_PARTITION_MOUNT}",
 
-			# put the version into the image (ctime is build time :-D)
-			"echo #{ROCKETSHIP_VERSION} > /etc/aero_version",
+			# put the version into the image (ctime is build time)
+			"echo #{IMAGE_VERSION} > /etc/rocketship_version",
 
 			# add nameservers so that apt will work
 			'echo nameserver 8.8.8.8 > /etc/resolv.conf',
