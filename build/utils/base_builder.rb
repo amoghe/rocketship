@@ -1,9 +1,13 @@
 require 'colorize'
 require 'tmpdir'
+require 'rake/file_utils'
 
 # Base class from which other 'builder' classes can inherit common functionality.
 
 class BaseBuilder
+
+	# Mix in FileUtils which have been monkeypatched by rake
+	include FileUtils
 
 	#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	# Print prettier messages.
@@ -37,8 +41,9 @@ class BaseBuilder
 	# Execute a command using rake 'sh'
 	def execute!(cmd, sudo=true, verbose=true)
 		cmd = sudo ? "sudo #{cmd}" : cmd
-		puts cmd if verbose
-		`#{cmd}`
+		# puts cmd if verbose
+		# `#{cmd}`
+		sh cmd, verbose: verbose
 	end
 
 	# Insufficient perms for the build
