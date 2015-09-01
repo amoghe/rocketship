@@ -43,7 +43,12 @@ class BaseBuilder
 		cmd = sudo ? "sudo #{cmd}" : cmd
 		# puts cmd if verbose
 		# `#{cmd}`
-		sh cmd, verbose: verbose
+		sh cmd, verbose: verbose do |ok, res|
+			if !ok
+				warn("Command [#{cmd}] exited with code: #{res.exitstatus}")
+				raise RuntimeError, "Failed to execute command: #{cmd}"
+			end
+		end
 	end
 
 	# Insufficient perms for the build
