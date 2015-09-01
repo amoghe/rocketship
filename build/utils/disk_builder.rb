@@ -27,18 +27,19 @@ class DiskBuilder < BaseBuilder
 	OS_PARTITION_SIZE_MB      = 1 * 1024 # 1 GB
 	CONFIG_PARTITION_SIZE_MB  = 2 * 1024
 
-	PARTITIONS = [ OpenStruct.new(:type  => :grub,
-		:label => GRUB_PARTITION_LABEL,
-		:size  => GRUB_PARTITION_SIZE_MB),
-		OpenStruct.new(:type  => :os,
-		:label => 'BOOTBANK1',
-		:size  => OS_PARTITION_SIZE_MB),
-		OpenStruct.new(:type  => :os,
-		:label => 'BOOTBANK2',
-		:size  => OS_PARTITION_SIZE_MB),
-		OpenStruct.new(:type  => :data,
-		:label => CONFIG_PARTITION_LABEL,
-		:size  => CONFIG_PARTITION_SIZE_MB),
+	PARTITIONS = [
+			OpenStruct.new(:type  => :grub,
+				:label => GRUB_PARTITION_LABEL,
+				:size  => GRUB_PARTITION_SIZE_MB),
+			OpenStruct.new(:type  => :os,
+				:label => 'BOOTBANK1',
+				:size  => OS_PARTITION_SIZE_MB),
+			OpenStruct.new(:type  => :os,
+				:label => 'BOOTBANK2',
+				:size  => OS_PARTITION_SIZE_MB),
+			OpenStruct.new(:type  => :data,
+				:label => CONFIG_PARTITION_LABEL,
+				:size  => CONFIG_PARTITION_SIZE_MB),
 	]
 
 	attr_reader :dev
@@ -80,7 +81,7 @@ class DiskBuilder < BaseBuilder
 	# Ensure that specified device isn't already mounted
 	#
 	def ensure_device_unmounted
-		# TODO: use execute! here once its able to return stdout
+		# NOTE: execute! prints output to console, and its not necessary here.
 		lines, _, status = Open3.capture3("mount | grep #{dev}")
 
 		return unless status.success? # grep returns success if pattern is found
@@ -111,8 +112,7 @@ class DiskBuilder < BaseBuilder
 			info("Creating partition #{part.label} (#{FS_TYPE})")
 
 			# create a partition
-			execute!("parted #{dev} mkpart primary " \
-			"#{FS_TYPE} #{start_size} #{end_size}MB")
+			execute!("parted #{dev} mkpart primary #{FS_TYPE} #{start_size} #{end_size}MB")
 
 			# put a filesystem and label on it
 			execute!("mkfs.#{FS_TYPE} -L \"#{part.label}\" #{dev}#{index+1}")
