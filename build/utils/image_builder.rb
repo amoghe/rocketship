@@ -169,36 +169,11 @@ class ImageBuilder < BaseBuilder
 			'dpkg-divert --local --rename --remove /sbin/initctl',
 		].reject(&:empty?)
 
-		Open3.popen3("sudo chroot #{rootfs_dir}") do |sin, sout, serr, stat|
-
-			# Print stuff for liveness
-			Thread.new { sout.each { |line| puts line } }
-
-			# Since we're in interactive mode this is the easiest way to detect
-			# individual command failures and bail on the first error. Else we
-			# run the risk of proceeding to create a faulty image.
-			sin.puts('set -e')
-			# make the subshell print it so it shows in our output (which is being
-			# provided by the thread draining its stdout).
-			sin.puts('set -x')
-
-			chroot_cmds.each_with_index do |cmd, num|
-				# If its an apt command, run it non interactively
-				cmd = "DEBIAN_FRONTEND=noninteractive #{cmd}" if cmd.include?('apt-get')
-				#info("[Step #{num+1} of #{chroot_cmds.length}] #{cmd}")
-				sin.puts(cmd)
-			end
-
-			sin.puts('exit')
-
-			res = stat.value
-
-			if not res.success?
-				warn('ERROR while installing additional packages in rootfs, stderr output:')
-				warn(serr.read)
-				raise RuntimeError, 'rootfs customization failed'
-			end
-
+		chroot_cmds.each_with_index do |cmd, num|
+			# If its an apt command, run it non interactively
+			cmd = "DEBIAN_FRONTEND=noninteractive #{cmd}" if cmd.include?('apt-get')
+			#info("[Step #{num+1} of #{chroot_cmds.length}] #{cmd}")
+			execute!("chroot #{rootfs_dir} /bin/bash -c \"#{cmd}\"", true)
 		end
 
 		nil
