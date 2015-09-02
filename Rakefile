@@ -9,7 +9,7 @@ require_relative 'build/utils/image_builder'
 
 namespace :build do
 
-	ROCKETSHIP_COMPONENTS = [ 'commander', 'crashcorder', 'radio']
+	ROCKETSHIP_COMPONENTS = [ 'commander', 'crashcorder', 'preflight', 'radio']
 
 	build_bin_tasks = []
 	copy_bin_tasks = []
