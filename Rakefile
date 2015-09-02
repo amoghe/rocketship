@@ -112,7 +112,7 @@ namespace :clean do
 		taskname = "copied_#{component}"
 		clean_bin_tasks << taskname
 		task taskname do
-			srcfile = File.join(File.dirname(__FILE__), 'bin', component, component)
+			srcfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'bin', component)
 			sh("rm -f #{srcfile}")
 		end
 	end
