@@ -55,19 +55,16 @@ namespace :build do
 	# Build image
 	# (depends on the task that copies the binaries)
 	#
-	desc 'Build the system image (params are string,bool,bool)'
-	task :image, [:debug, :upgrade, :rootfs_tarball_path,] do |t, args|
+	desc 'Build the system image (params are bool,bool,string)'
+	task :image, [:debug, :upgrade, :rootfs_tarball_path,] => copy_bin_tasks do |t, args|
 
 		args.with_defaults(:debug               => false)
 		args.with_defaults(:upgrade             => false)
 		args.with_defaults(:rootfs_tarball_path => ImageBuilder::CACHED_ROOTFS_TGZ_PATH)
 
-		# TODO: provide instructions on how to get rootfs
+		# TODO: provide instructions on how to get a rootfs
 		unless File.exists?(args.rootfs_tarball_path)
-			raise ArgumentError, "- - -[ FATAL !!! ]- - - - - - - - -\n"\
-			"No usable rootfs at #{args.rootfs_tarball_path}.\n"\
-			"Please ensure either the default cached rootfs exists,\n"\
-			"or specify the path to a custom rootfs file."
+			raise ArgumentError, "No usable rootfs at #{args.rootfs_tarball_path}. Aborting"
 		end
 
 		ImageBuilder.new(args.rootfs_tarball_path,
@@ -81,15 +78,11 @@ namespace :build do
 	# (depends on the task that builds the image).
 	#
 	desc 'Build a bootable disk containing the system image'
-	task :disk, [:device_path, :image_file] do |t, args|
+	task :disk, [:image_file] do |t, args|
+		args.with_defaults(:image_path  => ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH)
+		args.with_defaults(:debug       => false)
 
-		args.with_defaults(:device_path => '/dev/sdb',
-		:image_path  => ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH)
-
-		args.with_defaults(:debug => false)
-
-		DiskBuilder.new(args.device_path, args.image_path,
-		:debug => (args.debug and args.debug == 'true')).build
+		DiskBuilder.new(args.image_path, (args.debug and args.debug == 'true')).build
 	end
 
 
