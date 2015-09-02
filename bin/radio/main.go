@@ -62,7 +62,7 @@ func main() {
 		addr := fmt.Sprintf("127.0.0.1:%d", conf.ProcessConfig.ListenPort)
 
 		// Start an http server with this radio app
-		logger.Println("Starting radio")
+		logger.Println("Starting radio on ", addr)
 		var err error
 		radioserver, err = httpdown.HTTP{
 			StopTimeout: 5 * time.Second,
