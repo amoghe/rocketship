@@ -25,7 +25,7 @@ namespace :build do
 			subdir = File.join(File.dirname(__FILE__), 'bin', component)
 
 			# invoke the build in the subdir
-			Dir.chdir(subdir) { sh('go build') }
+			sh("$(cd #{subdir}; go build)")
 		end
 	end
 
@@ -38,7 +38,7 @@ namespace :build do
 		copy_bin_tasks << taskname
 		task taskname => component do |t|
 			srcfile = File.join(File.dirname(__FILE__), 'bin', component, component)
-			dstfile = File.join(File.dirname(__FILE__), 'build', 'opt', 'bin', component)
+			dstfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'bin', component)
 
 			sh("mkdir -p #{File.dirname(dstfile)}")
 			sh("cp #{srcfile} #{dstfile}")
