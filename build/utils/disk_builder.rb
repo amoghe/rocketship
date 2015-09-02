@@ -1,6 +1,7 @@
 require 'open3'
 require 'pp'
 require 'ostruct'
+require 'tempfile'
 
 require_relative 'base_builder'
 
@@ -12,6 +13,11 @@ class DiskBuilder < BaseBuilder
 	#
 	# Constants for the disk build
 	#
+	BUILD_DIR                 = File.expand_path(File.join(File.dirname(__FILE__), '..'))
+
+	VMDK_FILE_NAME            = "rocketship.vmdk"
+	VMDK_FILE_PATH            = File.join(BUILD_DIR, VMDK_FILE_NAME)
+
 	PARTITION_TABLE_TYPE      = 'msdos'
 	FS_TYPE                   = 'ext4'
 
@@ -23,6 +29,7 @@ class DiskBuilder < BaseBuilder
 	CONFIG_PARTITION_LABEL    = 'CONFIG'
 	CONFIG_PARTITION_MOUNT    = '/config'
 
+	TOTAL_DISK_SIZE_GB        = 8
 	GRUB_PARTITION_SIZE_MB    = 64
 	OS_PARTITION_SIZE_MB      = 1 * 1024 # 1 GB
 	CONFIG_PARTITION_SIZE_MB  = 2 * 1024
@@ -46,50 +53,59 @@ class DiskBuilder < BaseBuilder
 	attr_reader :image_tarball_path
 	attr_reader :debug
 
-	def initialize(dev, image_path, opts={})
-		if dev.nil?
-			raise ArgumentError, 'No target device (disk) specified!'
-		elsif not File.blockdev?(dev)
-			raise ArgumentError, "No such device found! (#{dev})"
-		elsif not File.exists?(image_path)
-			raise ArgumentError, 'No image available for installation'
-		end
+	def initialize(image_path, debug)
+		raise ArgumentError, "Invalid image specified: #{image_path}" unless File.exists?(image_path)
 
-		@dev = dev
 		@image_tarball_path = image_path
+		@debug = debug
 
-		@debug = opts[:debug]
+		# these will be set later
+		@dev = nil
+		@tempfile = nil
 	end
 
 	##
 	# Image the disk.
 	#
 	def build
-		self.ensure_root_privilege
-
-		banner("Installing image (#{image_tarball_path}) on to #{dev}")
-
-		self.ensure_device_unmounted
+		self.create_loopback_disk
 		self.create_partitions
 		self.install_grub
 		self.install_system_image
-
-		info("Device #{dev} has been prepared as system disk")
+		self.create_vmdk
+	rescue => e
+		warn("Failed to build disk due to #{e}")
+		warn(e.backtrace)
+	ensure
+		self.delete_loopback_disk
 	end
 
 	##
-	# Ensure that specified device isn't already mounted
+	# Create the loopback disk device on which we'll first install the image
 	#
-	def ensure_device_unmounted
-		# NOTE: execute! prints output to console, and its not necessary here.
-		lines, _, status = Open3.capture3("mount | grep #{dev}")
+	def create_loopback_disk
+		banner("Creating disk file and loopback device")
 
-		return unless status.success? # grep returns success if pattern is found
+		@tempfile = "/tmp/tempdisk_#{Time.now.to_i}"
+		execute!("fallocate -l #{TOTAL_DISK_SIZE_GB}G #{@tempfile}", false)
 
-		lines.split("\n").each do |line|
-			mounted_partition = line.split(' ')[0]
-			execute!("umount #{mounted_partition}")
-		end
+		output, _, stat = Open3.capture3("sudo losetup --find")
+		raise RuntimeError, 'Failed to find loop device' unless stat.success?
+
+		execute!("losetup #{output.strip} #{@tempfile}")
+		@dev = output.strip
+
+		info("Using file  : #{@tempfile}")
+		info("Using device: #{dev}")
+	end
+
+	##
+	# Delete the loopback disk device
+	#
+	def delete_loopback_disk
+		banner("Deleting loop disk and file")
+		execute!("losetup -d #{dev}") if dev && dev.length > 0
+		execute!("rm -f #{@tempfile}") if @tempfile && @tempfile.length > 0
 	end
 
 	##
@@ -115,7 +131,7 @@ class DiskBuilder < BaseBuilder
 			execute!("parted #{dev} mkpart primary #{FS_TYPE} #{start_size} #{end_size}MB")
 
 			# put a filesystem and label on it
-			execute!("mkfs.#{FS_TYPE} -L \"#{part.label}\" #{dev}#{index+1}")
+			execute!("mkfs.#{FS_TYPE} -L \"#{part.label}\" #{dev}p#{index+1}")
 
 			# calculate start for next iteration
 			start_size = "#{end_size}MB"
@@ -128,6 +144,7 @@ class DiskBuilder < BaseBuilder
 	# Install the grub bootloader.
 	#
 	def install_grub
+		info("installing grub")
 		# mount it at some temp location, and operate on it
 		Dir.mktmpdir do |mountdir|
 			begin
@@ -136,40 +153,49 @@ class DiskBuilder < BaseBuilder
 
 				boot_dir = File.join(mountdir, 'boot')
 				grub_dir = File.join(boot_dir, 'grub')
+				arch_dir = File.join(grub_dir, GRUB_ARCHITECTURE)
 
-				Dir.mkdir(boot_dir) rescue Errno::EEXIST
-				Dir.mkdir(grub_dir) rescue Errno::EEXIST
+				execute!("mkdir -p #{boot_dir}")
+				execute!("mkdir -p #{grub_dir}")
+				execute!("mkdir -p #{arch_dir}")
 
 				# Copy grub files
 				if not Dir.exists?("/usr/lib/grub/#{GRUB_ARCHITECTURE}")
 					raise RuntimeError, 'Cannot perform GRUB installation without the '\
 					"necessary files (Missing: #{"/usr/lib/grub/#{GRUB_ARCHITECTURE}"})"
 				else
-					FileUtils.cp_r(Dir.glob("/usr/lib/grub/#{GRUB_ARCHITECTURE}/*"),
-					grub_dir)
+					execute!("cp -r /usr/lib/grub/#{GRUB_ARCHITECTURE} #{grub_dir}")
 				end
 
 				device_map_filepath = File.join(grub_dir, 'device.map')
 				load_cfg_filepath   = File.join(grub_dir, 'load.cfg')
 				grub_cfg_filepath   = File.join(grub_dir, 'grub.cfg')
 
-				core_img_filepath   = File.join(grub_dir, 'core.img')
-				boot_img_filepath   = File.join(grub_dir, 'boot.img')
+				core_img_filepath   = File.join(arch_dir, 'core.img')
+				boot_img_filepath   = File.join(arch_dir, 'boot.img')
 
 				# Setup device.map
-				File.open(device_map_filepath, 'w') do |f|
+				info("creating device map")
+				Tempfile.open('device.map') do |f|
 					f.puts("(hd0) #{dev}")
+
+					f.sync; f.fsync # flush ruby buffers and OS buffers
+					execute!("cp #{f.path} #{device_map_filepath}")
 				end
 
 				# Setup load.cfg
-				File.open(load_cfg_filepath, 'w') do |f|
+				info("creating load.cfg")
+				Tempfile.open('load.cfg') do |f|
 					f.puts("search.fs_label #{GRUB_PARTITION_LABEL} root")
-					f.puts('set prefix=($root)/boot/grub')
-					f.puts('')
+					f.puts("set prefix=($root)/boot/grub")
+
+					f.sync; f.fsync # flush ruby buffers and OS buffers
+					execute!("cp #{f.path} #{load_cfg_filepath}")
 				end
 
 				# Setup grub.cfg
-				File.open(grub_cfg_filepath, 'w') do |f|
+				info("creating grub.cfg")
+				Tempfile.open('grub.conf') do |f|
 					f.puts('set default=0')  # TODO ?
 					f.puts("set timeout=#{GRUB_MENU_TIMEOUT}")
 					f.puts('')
@@ -193,11 +219,10 @@ class DiskBuilder < BaseBuilder
 							'console=ttyS0',
 							'console=tty0'
 						].join(' ') # TODO: quiet splash
-						menuentry_name = "AKSHAY-#{label}" # TODO
 
 						f.puts ('# 0')
-						f.puts("menuentry \"#{menuentry_name}\" {") # TODO (ver) name?
-						#f.puts('  insmod ext2') # also does ext{2,3,4}
+						f.puts("menuentry \"ROCKETSHIP_#{label}\" {") # TODO (ver) name?
+						f.puts('  insmod ext2') # also does ext{2,3,4}
 						#f.puts('  insmod gzio')
 						#f.puts('  insmod part_msdos')
 						f.puts("  search  --label --set=root --no-floppy #{label}")
@@ -206,15 +231,20 @@ class DiskBuilder < BaseBuilder
 						f.puts('}')
 						f.puts('')
 					end
+
+					f.sync; f.fsync # flush from ruby buffers, then os buffers
+
+					# Copy it over
+					execute!("cp #{f.path} #{grub_cfg_filepath}")
 				end
 
 				# create core.img
-				execute!([ 'grub-mkimage'                 ,
-					"--config=#{load_cfg_filepath}",
-					"--output=#{core_img_filepath}",
+				execute!([ 'grub-mkimage'		,
+					"--config=#{load_cfg_filepath}"	,
+					"--output=#{core_img_filepath}"	,
 					# Different prefix command (unlike load.cfg)
-					"--prefix=\"/boot/grub\""      ,
-					'--format=i386-pc'             ,
+					"--prefix=\"/boot/grub\""	,
+					"--format=#{GRUB_ARCHITECTURE}"	,
 					# TODO msdospart? also ext2 covers ext3,4
 					"biosdisk ext2 part_msdos search" ,
 				].join(' '))
@@ -223,9 +253,10 @@ class DiskBuilder < BaseBuilder
 					raise RuntimeError, 'No file output from grub-mkimage'
 				end
 
-				execute!([ 'grub-setup '              ,
-					"--boot-image=boot.img"    , # TODO
-					"--core-image=core.img"    ,
+				execute!([
+					'grub-bios-setup'          ,
+					"--boot-image=#{GRUB_ARCHITECTURE}/boot.img"    ,
+					"--core-image=#{GRUB_ARCHITECTURE}/core.img"    ,
 					"--directory=#{grub_dir} " ,
 					"--device-map=#{device_map_filepath} " ,
 					debug ? '--verbose' : ''   ,
@@ -233,8 +264,6 @@ class DiskBuilder < BaseBuilder
 					"#{dev}"                   ,
 				].join(' '))
 
-			rescue => e
-				puts e
 			ensure
 				# Always unmount it
 				execute!("umount #{mountdir}")
@@ -259,17 +288,17 @@ class DiskBuilder < BaseBuilder
 			# mount it, put the image on it, unmount it
 			Dir.mktmpdir do |mountdir|
 				begin
-					execute!("mount #{File.join('/dev/disk/by-label', label.to_s)} "\
-					"#{mountdir}")
+					execute!("mount #{File.join('/dev/disk/by-label', label.to_s)} #{mountdir}")
 
-					execute!([ 'tar ',
-						'--extract',
-						"--file=#{image_tarball_path}",
-						# Perms from the image should be retained.
-						# Our job is to only install image to disk.
-						'--preserve-permissions',
-						'--numeric-owner',
-						"-C #{mountdir} ."].join(' '))
+					execute!([ 	'tar ',
+							'--extract',
+							"--file=#{image_tarball_path}",
+							# Perms from the image should be retained.
+							# Our job is to only install image to disk.
+							'--preserve-permissions',
+							'--numeric-owner',
+							"-C #{mountdir} ."
+						].join(' '))
 
 						fsopts = "defaults,errors=remount-ro"
 						clabel = CONFIG_PARTITION_LABEL
@@ -286,13 +315,15 @@ class DiskBuilder < BaseBuilder
 					end
 
 					# We now know which partition we reside on, so write out the fstab
-					File.open(File.join(mountdir, '/etc/fstab'), 'w') do |f|
+					fstab_file_path = File.join(mountdir, '/etc/fstab')
+					Tempfile.open('fstab') do |f|
 						f.puts('# This file is autogenerated')
 						f.puts(fstab_contents)
+
+						f.sync; f.fsync # flush ruby buffers and OS buffers
+						execute!("cp #{f.path} #{fstab_file_path}")
 					end
 
-				rescue => e
-					puts e
 				ensure
 					execute!("umount #{mountdir}")
 				end
@@ -304,4 +335,10 @@ class DiskBuilder < BaseBuilder
 		nil
 	end
 
+	def create_vmdk
+		execute!("losetup -d #{dev}")
+		@dev = nil # nil it out, indicating we were successful in umounting it
+
+		execute!("qemu-img convert -f raw -O vmdk #{@tempfile} #{VMDK_FILE_PATH}")
+	end
 end
