@@ -74,6 +74,7 @@ func (c *Controller) RewriteFiles() error {
 		c.RewritePasswdFile,
 		c.RewriteShadowFile,
 		c.RewriteGroupsFile,
+		c.EnsureHomedirs,
 		c.RewriteInterfacesFile,
 		c.RewriteDhclientConfFile,
 	} {
