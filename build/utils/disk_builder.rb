@@ -340,5 +340,8 @@ class DiskBuilder < BaseBuilder
 		@dev = nil # nil it out, indicating we were successful in umounting it
 
 		execute!("qemu-img convert -f raw -O vmdk #{@tempfile} #{VMDK_FILE_PATH}")
+
+		orig_user = `whoami`.strip
+		execute!("chown #{orig_user} #{VMDK_FILE_PATH}")
 	end
 end
