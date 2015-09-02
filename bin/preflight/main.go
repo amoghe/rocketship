@@ -40,5 +40,8 @@ func main() {
 	logger.Println("Seeding database")
 	cmdr.SeedDB()
 
+	logger.Println("Regenerating config files")
+	cmdr.RewriteFiles()
+
 	logger.Println("Preflight finished")
 }
