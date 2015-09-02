@@ -61,8 +61,8 @@ func (c *Controller) syslogConfFileContents() ([]byte, error) {
 
 	type _templateData struct {
 		GenTime string
-		Uid     uint32
-		Gid     uint32
+		Uid     int
+		Gid     int
 	}
 
 	tmpl, err := template.New("syslog.conf").Parse(templateStr)
