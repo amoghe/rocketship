@@ -100,7 +100,7 @@ namespace :clean do
 
 	clean_bin_tasks = []
 
-	# Tasks for copying component binaries
+	# [INTERNAL] Tasks for cleaning built binaries (in the src dir).
 	# (intentionally missing descriptions so that they are omitted in the -T output. Instead see
 	# the :allbins target that uses these).
 	ROCKETSHIP_COMPONENTS.each do |component|
@@ -112,6 +112,27 @@ namespace :clean do
 		end
 	end
 
+	# [INTERNAL] Tasks for cleaning up copied binaries (in the rootfs dir).
+	# (Intentionally missing descriptions so that they are omitted in the -T output. Instead see
+	# the :allbins target that uses these).
+	ROCKETSHIP_COMPONENTS.each do |component|
+		taskname = "copied_#{component}"
+		clean_bin_tasks << taskname
+		task taskname do
+			srcfile = File.join(File.dirname(__FILE__), 'bin', component, component)
+			sh("rm -f #{srcfile}")
+		end
+	end
+
+	# User facing task that cleans up all the binaries
 	desc "Clean all built binaries"
 	task :allbins => clean_bin_tasks
+
+	desc 'Clean everything'
+	task :full => :allbins do
+		# bins (built, copied) will be cleaned by dependent task.
+		# Clean up image files, disk files
+		sh("rm -f build/rocketship.img")
+		sh("rm -f build/rocketship.vmdk")
+	end
 end
