@@ -2,6 +2,7 @@ package commander
 
 import (
 	"net/http"
+
 	"rocketship/commander/modules/crashcorder"
 	"rocketship/commander/modules/host"
 	"rocketship/commander/modules/radio"
@@ -67,6 +68,20 @@ func (c *Commander) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (c *Commander) MigrateDB() error {
 	for _, c := range c.controllers {
 		c.MigrateDB()
+	}
+	return nil
+}
+
+func (c *Commander) SeedDB() error {
+	for _, c := range c.controllers {
+		c.SeedDB()
+	}
+	return nil
+}
+
+func (c *Commander) RewriteFiles() error {
+	for _, c := range c.controllers {
+		c.RewriteFiles()
 	}
 	return nil
 }
