@@ -9,10 +9,13 @@ import (
 
 const (
 	GroupsFilePath = "/etc/groups"
+
+	// Datum from which we start computing gid's for configured users.
+	GIDDatum = 2000
 )
 
 var (
-	defaultGroups = map[string]uint32{
+	defaultGroups = map[string]int{
 		// name      : GID
 		"root":     0,
 		"daemon":   1,
@@ -43,8 +46,6 @@ var (
 		"radio":       1001,
 		"crashcorder": 1002,
 
-		// TODO: bespoke
-
 		"nogroup": 65534,
 	}
 )
@@ -69,10 +70,22 @@ func (c *Controller) groupsFileContents() ([]byte, error) {
 		contents.WriteString(groupFileEntry(group, id, []User{}))
 		contents.WriteString("\n")
 	}
+
+	users := []User{}
+	err := c.db.Find(&users).Error
+	if err != nil {
+		return []byte{}, err
+	}
+
+	for _, user := range users {
+		contents.WriteString(groupFileEntry(user.Name, user.Gid(), []User{user}))
+		contents.WriteString("\n")
+	}
+
 	return contents.Bytes(), nil
 }
 
-func groupFileEntry(name string, id uint32, users []User) string {
+func groupFileEntry(name string, id int, users []User) string {
 	var usersList []string
 	for _, u := range users {
 		usersList = append(usersList, u.Name)

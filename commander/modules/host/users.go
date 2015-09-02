@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -14,9 +15,9 @@ import (
 )
 
 const (
-	// Users
-	UIDDatum              = 2000
-	GIDDatum              = 2000
+	// Datum from which we start computing uid's for configured users.
+	UIDDatum = 2000
+
 	ValidUsernameChars    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789-_"
 	MaxUsernameLen        = 12
 	MinUsernameLen        = 2
@@ -36,104 +37,115 @@ var (
 		{User: User{
 			Name:    "root",
 			Comment: "Superuser",
-			Uid:     0,
-			Gid:     defaultGroups["root"],
 			Homedir: "/root",
-		}},
+		},
+			Uid: 0,
+			Gid: int(defaultGroups["root"]),
+		},
 		{User: User{
 			Name:    "daemon",
 			Comment: "",
-			Uid:     1,
-			Gid:     defaultGroups["daemon"],
 			Homedir: "/usr/sbin",
-		}},
+		},
+			Uid: 1,
+			Gid: defaultGroups["daemon"],
+		},
 		{User: User{
 			Name:    "bin",
 			Comment: "",
-			Uid:     2,
-			Gid:     defaultGroups["bin"],
 			Homedir: "/bin",
-		}},
+		},
+			Uid: 2,
+			Gid: defaultGroups["bin"],
+		},
 		{User: User{
 			Name:    "sys",
 			Comment: "",
-			Uid:     3,
-			Gid:     defaultGroups["sys"],
 			Homedir: "/dev",
-		}},
+		},
+			Uid: 3,
+			Gid: defaultGroups["sys"],
+		},
 		{User: User{
 			Name:    "www-data",
 			Comment: "",
-			Uid:     33,
-			Gid:     defaultGroups["www-data"],
 			Homedir: "/var/www",
-		}},
+		},
+			Uid: 33,
+			Gid: defaultGroups["www-data"],
+		},
 		{User: User{
 			Name:    "libuuid",
 			Comment: "",
-			Uid:     100,
-			Gid:     defaultGroups["libuuid"],
 			Homedir: "/var/lib/uuid",
-		}},
+		},
+			Uid: 100,
+			Gid: defaultGroups["libuuid"],
+		},
 		{User: User{
 			Name:    "syslog",
 			Comment: "",
-			Uid:     101,
-			Gid:     defaultGroups["syslog"],
 			Homedir: "/home/syslog",
-		}},
+		},
+			Uid: 101,
+			Gid: defaultGroups["syslog"],
+		},
 		{User: User{
 			Name:    "messagebus",
 			Comment: "",
-			Uid:     102,
-			Gid:     defaultGroups["messagebus"],
 			Homedir: "/var/run/dbus",
-		}},
+		},
+			Uid: 102,
+			Gid: defaultGroups["messagebus"],
+		},
 		{User: User{
 			Name:    "sshd",
 			Comment: "SSH daemon",
-			Uid:     105,
-			Gid:     defaultGroups["nogroup"],
 			Homedir: "/var/run/sshd",
-		}},
+		},
+			Uid: 105,
+			Gid: defaultGroups["nogroup"],
+		},
 		{User: User{
 			Name:    "nobody",
 			Comment: "",
-			Uid:     65534,
-			Gid:     defaultGroups["nogroup"],
 			Homedir: "/nonexistent",
-		}},
+		},
+			Uid: 65534,
+			Gid: defaultGroups["nogroup"],
+		},
 		//
 		// Rocketship users
 		//
 		{User: User{
 			Name:    "radio",
 			Comment: "SSH daemon",
-			Uid:     1001,
-			Gid:     defaultGroups["radio"],
 			Homedir: "/tmp",
-		}},
+		},
+			Uid: 1001,
+			Gid: defaultGroups["radio"]},
 		// write config file
 		{User: User{
 			Name:    "crashcorder",
 			Comment: "crash reporter daemon",
-			Uid:     1002,
-			Gid:     defaultGroups["crashcorder"],
 			Homedir: "/tmp",
-		}},
+		},
+			Uid: 1002,
+			Gid: defaultGroups["crashcorder"],
+		},
 	}
 )
 
 // GetSystemUser returns a user struct populated with the details of a default ("system")
 // user. This is used by other modules to query what uid/gid they should run their programs with.
-func GetSystemUser(name string) (User, error) {
+func GetSystemUser(name string) (DefaultUser, error) {
 
 	for _, user := range defaultUsers {
 		if name == user.Name {
-			return user.User, nil
+			return user, nil
 		}
 	}
-	return User{}, fmt.Errorf("No such user")
+	return DefaultUser{}, fmt.Errorf("No such user")
 }
 
 //
@@ -165,6 +177,36 @@ func (c *Controller) RewriteShadowFile() error {
 		return err
 	}
 
+	return nil
+}
+
+func (c *Controller) EnsureHomedirs() error {
+	users := []User{}
+	failed := map[string]bool{}
+
+	err := c.db.Find(&users).Error
+	if err != nil {
+		return err
+	}
+
+	for _, user := range users {
+		dirname := fmt.Sprintf("/home/%s", user.Name)
+
+		err = os.Mkdir(dirname, 0777)
+		if err != nil {
+			failed[user.Name] = true
+			continue
+		}
+
+		err = os.Chown(dirname, user.Uid(), user.Gid())
+		if err != nil {
+			failed[user.Name] = true
+			continue
+		}
+
+	}
+
+	// TODO:  If there were errors creating any of the homedirs, return them
 	return nil
 }
 
@@ -224,8 +266,6 @@ type User struct {
 	ID             int64
 	Name           string
 	Comment        string
-	Uid            uint32
-	Gid            uint32
 	Homedir        string
 	Login          bool
 	Password       string `sql:"-"`
@@ -289,13 +329,23 @@ func (u *User) BeforeCreate() error {
 // Helpers
 //
 
+// Uid returns the Uid for this user.
+func (u User) Uid() int {
+	return int(UIDDatum + u.ID)
+}
+
+// Gid returns the Gid for this user.
+func (u User) Gid() int {
+	return int(GIDDatum + u.ID)
+}
+
 func (u User) PasswdFileEntry() string {
 	shell := "/bin/bash" // TODO: changeme
 	return strings.Join([]string{
 		u.Name,
 		"x",
-		fmt.Sprintf("%d", UIDDatum+u.Uid),
-		fmt.Sprintf("%d", GIDDatum+u.Gid),
+		fmt.Sprintf("%d", u.Uid()),
+		fmt.Sprintf("%d", u.Gid()),
 		"",
 		"/home/" + u.Name,
 		shell,
@@ -322,6 +372,8 @@ func (u User) ShadowFileEntry() string {
 // users (baked into the os) specially.
 type DefaultUser struct {
 	User
+	Uid int
+	Gid int
 }
 
 func (d DefaultUser) PasswdFileEntry() string {

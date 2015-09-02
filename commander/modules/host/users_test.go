@@ -34,8 +34,6 @@ func (ts *UsersTestSuite) TearDownTest(c *C) {
 func (ts *UsersTestSuite) TestPasswordHashedBeforeSave(c *C) {
 	u := User{
 		Name:     "jdoe",
-		Uid:      1001,
-		Gid:      1001,
 		Password: "somepass",
 	}
 
@@ -50,8 +48,6 @@ func (ts *UsersTestSuite) TestPasswordNotSavedToDB(c *C) {
 	u1 := User{
 		ID:       42,
 		Name:     "johndoe",
-		Uid:      1001,
-		Gid:      1001,
 		Password: "somepass",
 	}
 
