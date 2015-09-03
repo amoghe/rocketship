@@ -66,10 +66,14 @@ func (c *Controller) RewriteFiles() error {
 
 	// ensure dir and file perms
 	ccUser, _ := host.GetSystemUser("crashcorder")
-
-	// ensure dir and file perms
 	for _, f := range []string{CrashcorderConfDir, CrashcorderConfFile} {
 		os.Chown(f, int(ccUser.Uid), int(ccUser.Gid))
+	}
+
+	// configure kernel core pattern
+	err = c.configureKernelCorePattern()
+	if err != nil {
+		return fmt.Errorf("failed to configure kernel core pattern: %s", err)
 	}
 
 	return nil
