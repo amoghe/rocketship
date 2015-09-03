@@ -16,8 +16,14 @@ import (
 )
 
 const (
-	SshConfigDirPath  = "/etc/ssh"
-	SshConfigFilePath = SshConfigDirPath + "/ssh_config"
+	SshConfigDirPath = "/etc/ssh"
+
+	SshConfigFileName         = "ssh_config"
+	SshKeyRegenMarkerFileName = ".commander_regenerated_keys"
+
+	// Path to files of interest in the ssh dir
+	SshConfigFilePath         = SshConfigDirPath + "/" + SshConfigFileName
+	SshKeyRegenMarkerFilePath = SshConfigDirPath + "/" + SshKeyRegenMarkerFileName
 
 	// Prefix under which this controller registers endpoints
 	URLPrefix = "/ssh"
@@ -109,6 +115,7 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 //
 
 func (c *Controller) RewriteFiles() error {
+	// helper func to rewrite ssh_config file
 	regenerateSshConfigFile := func() error {
 		contents, err := c.sshConfigFileContents()
 		if err != nil {
@@ -121,10 +128,10 @@ func (c *Controller) RewriteFiles() error {
 		return nil
 	}
 
+	// helper func to regenerate host SSH keys
 	regenerateHostKeysOnce := func() error {
-		// Regenerate keys on first boot
-		if _, err := os.Stat(SshConfigDirPath + "/.commander_regenerated_keys"); err == nil {
-			// Marker exists, keys have been regenerated
+		if _, err := os.Stat(SshKeyRegenMarkerFilePath); err == nil {
+			// Marker exists, keys have been regenerated once before
 			return nil
 		}
 
@@ -143,6 +150,9 @@ func (c *Controller) RewriteFiles() error {
 				return fmt.Errorf("%s: %s", err_prefix, err)
 			}
 		}
+
+		// Touch the marker file
+		ioutil.WriteFile(SshKeyRegenMarkerFilePath, []byte(time.Now().String()), 0664)
 		return nil
 	}
 
