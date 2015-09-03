@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"os/exec"
 	"text/template"
 	"time"
 
@@ -14,6 +16,9 @@ import (
 )
 
 const (
+	SshConfigDirPath  = "/etc/ssh"
+	SshConfigFilePath = SshConfigDirPath + "/ssh_config"
+
 	// Prefix under which this controller registers endpoints
 	URLPrefix = "/ssh"
 
@@ -104,6 +109,54 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 //
 
 func (c *Controller) RewriteFiles() error {
+	regenerateSshConfigFile := func() error {
+		contents, err := c.sshConfigFileContents()
+		if err != nil {
+			return err
+		}
+		err = ioutil.WriteFile(SshConfigFilePath, contents, 0644)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	regenerateHostKeysOnce := func() error {
+		// Regenerate keys on first boot
+		if _, err := os.Stat(SshConfigDirPath + "/.commander_regenerated_keys"); err == nil {
+			// Marker exists, keys have been regenerated
+			return nil
+		}
+
+		cmd := &exec.Cmd{
+			Path: "/usr/bin/ssh-keygen",
+			Args: []string{"-A"},
+			Dir:  SshConfigDirPath,
+		}
+		if err := cmd.Run(); err != nil {
+			err_prefix := "failed to regenerate SSH host keys"
+			switch err.(type) {
+			case *exec.ExitError:
+				out, _ := cmd.CombinedOutput()
+				return fmt.Errorf("%s: %s", err_prefix, out)
+			default:
+				return fmt.Errorf("%s: %s", err_prefix, err)
+			}
+		}
+		return nil
+	}
+
+	err1 := regenerateSshConfigFile()
+	err2 := regenerateHostKeysOnce()
+
+	if err1 != nil && err2 != nil {
+		return fmt.Errorf("errors regenerating ssh config: %s & error regenerating keys: %s", err1, err2)
+	} else if err1 != nil {
+		return fmt.Errorf("error regenerating ssh config: %s", err1)
+	} else if err2 != nil {
+		return fmt.Errorf("error regenerating ssh keys: %s", err2)
+	}
+
 	return nil
 }
 
