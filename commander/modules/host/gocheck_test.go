@@ -12,6 +12,7 @@ func init() {
 	Suite(&HostnameTestSuite{})
 	Suite(&InterfacesTestSuite{})
 	Suite(&UsersTestSuite{})
+	Suite(&SudoersTestSuite{})
 }
 
 // Hook up gocheck into the "go test" runner.
