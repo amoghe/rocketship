@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os/exec"
 	"strings"
 
 	"github.com/jinzhu/gorm"
@@ -40,7 +41,123 @@ const (
 // Endpoint Handlers
 //
 
-func (c *Controller) EditInterface(ctx web.C, w http.ResponseWriter, r *http.Request) {}
+func (c *Controller) GetInterfaces(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	ifaces := []InterfaceConfig{}
+	if err := c.db.Find(&ifaces).Error; err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	type interfaceConfigResource struct {
+		InterfaceStatus string
+		InterfaceConfig
+	}
+
+	resources := make([]interfaceConfigResource, len(ifaces))
+	for i, r := range resources {
+		cmd := exec.Cmd{
+			Path: "/sbin/ifconfig",
+			Args: []string{ifaces[i].Name},
+		}
+		if err := cmd.Run(); err != nil {
+			continue
+		}
+
+		output, _ := cmd.Output()
+		ptr := &r
+		ptr.InterfaceConfig = ifaces[i]
+		ptr.InterfaceStatus = string(output)
+	}
+
+	bytes, err := json.Marshal(resources)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	_, err = w.Write(bytes)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	return
+}
+
+func (c *Controller) EditInterface(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	// Read from request
+
+	// save to db
+
+	// twiddle interface
+}
+
+func (c *Controller) GetDHCPProfiles(w http.ResponseWriter, r *http.Request) {
+	profiles := []DHCPProfile{}
+	if err := c.db.Find(&profiles).Error; err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	resources := make([]DHCPProfileResource, len(profiles))
+	for i, r := range resources {
+		ptr := &r
+		ptr.FromDHCPProfileModel(profiles[i])
+	}
+
+	bytes, err := json.Marshal(resources)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	_, err = w.Write(bytes)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	return
+}
+
+func (c *Controller) CreateDHCPProfile(w http.ResponseWriter, r *http.Request) {
+	profile := DHCPProfile{}
+
+	bodybytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	err = json.Unmarshal(bodybytes, &profile)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	err = c.db.Create(&profile).Error
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	resource := &DHCPProfileResource{}
+	resource.FromDHCPProfileModel(profile)
+
+	bytes, err := json.Marshal(resource)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	_, err = w.Write(bytes)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	return
+}
 
 //
 // File generators
