@@ -150,6 +150,29 @@ func (ts *InterfacesTestSuite) TestDhclientConfFileGeneration(c *C) {
 	c.Assert(strings.Contains(string(filecontents), "interface test0 {"), Equals, false)
 }
 
+func (ts *InterfacesTestSuite) TestDhclientConfFileGenerationWithOverrides(c *C) {
+	err := ts.db.Create(&DHCPProfile{
+		OverrideHostname:   true,
+		OverrideDomainName: true,
+	}).Error
+	c.Assert(err, IsNil)
+
+	err = ts.db.Save(&InterfaceConfig{
+		ID:            1,
+		Name:          "eth0",
+		Mode:          ModeDHCP,
+		DHCPProfileID: 2,
+	}).Error
+	c.Assert(err, IsNil)
+
+	filecontents, err := ts.controller.dhclientConfFileContents()
+	c.Assert(err, IsNil)
+	c.Log(string(filecontents))
+
+	// Ensure a supersede section for the default hostname.
+	c.Assert(strings.Contains(string(filecontents), "supersede host-name ncc1701"), Equals, true)
+}
+
 //
 // Resource tests
 //

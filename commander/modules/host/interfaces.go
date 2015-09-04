@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"strings"
 
 	"github.com/jinzhu/gorm"
+	"github.com/zenazn/goji/web"
 )
 
 const (
@@ -33,6 +35,12 @@ const (
 		"\"rfc3442-classless-static-routes\", \"ntp-servers\", \"dhcp6.domain-search\", " +
 		"\"dhcp6.fqdn\", \"dhcp6.name-servers\", \"dhcp6.sntp-servers\"]"
 )
+
+//
+// Endpoint Handlers
+//
+
+func (c *Controller) EditInterface(ctx web.C, w http.ResponseWriter, r *http.Request) {}
 
 //
 // File generators
@@ -257,14 +265,31 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 
 	ret.WriteString(fmt.Sprintf("interface %s {\n", iface.Name))
 
-	// TODO: handle the 'special' HostNameMode and DomainNameMode flags which allow the user to
-	// easily specify whether to override the hostname and domain name returned by the server.
-
-	// Timing options are not 'named'
-	ret.WriteString(sectionForMap(2, "", decodeMap(dhcpProfile.TimingOptions)))
+	ret.WriteString(sectionForMap(2, "", decodeMap(dhcpProfile.TimingOptions))) // Timing options are not 'named'
 	ret.WriteString(sectionForMap(2, "send", decodeMap(dhcpProfile.SendOptions)))
 	ret.WriteString(sectionForSlice(2, "request", decodeSlice(dhcpProfile.RequestOptions)))
 	ret.WriteString(sectionForSlice(2, "require", decodeSlice(dhcpProfile.RequireOptions)))
+
+	// Next, handle the 'special' HostNameMode and DomainNameMode flags which allow the user to
+	// easily specify whether to override the hostname and domain name returned by the server.
+
+	if dhcpProfile.OverrideHostname {
+		hostname := Hostname{}
+		if err = c.db.First(&hostname).Error; err != nil {
+			return "", fmt.Errorf("failed to get hostname from db (for dhclient.conf): %s", err)
+		}
+		ret.WriteString(sectionForMap(2, "supersede", map[string]string{"host-name": hostname.Hostname}))
+	}
+
+	if dhcpProfile.OverrideDomainName {
+		domain := Domain{}
+		if err = c.db.First(&domain).Error; err != nil {
+			return "", fmt.Errorf("failed to get domain from db (for dhclient.conf): %s", err)
+		}
+		if len(domain.Domain) > 0 {
+			ret.WriteString(sectionForMap(2, "supersede", map[string]string{"domain-name": domain.Domain}))
+		}
+	}
 
 	// Not configurable yet (see models.go)
 	//ret.WriteString(sectionForMap(2, "append", decodeMap(dhcpProfile.AppendOptions)))
@@ -316,6 +341,10 @@ func (i *InterfaceConfig) BeforeSave(txn *gorm.DB) error {
 	case ModeStatic:
 		return i.validateIPs()
 	case ModeDHCP:
+		// In DHCP mode, these cannot be set by the user
+		i.Address = ""
+		i.Gateway = ""
+		i.Netmask = ""
 		return i.validateDHCPProfile(txn)
 	default:
 		return fmt.Errorf("Invalid mode (%s) set for interface %s", i.Mode, i.Name)
