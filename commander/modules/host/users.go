@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/amoghe/go-crypt"
+	"github.com/jinzhu/gorm"
+	"github.com/zenazn/goji/web"
 )
 
 const (
@@ -146,6 +150,106 @@ func GetSystemUser(name string) (DefaultUser, error) {
 		}
 	}
 	return DefaultUser{}, fmt.Errorf("No such user")
+}
+
+//
+// Endpoint handlers
+//
+
+func (c *Controller) GetUsers(w http.ResponseWriter, r *http.Request) {
+	users := []User{}
+	err := c.db.Find(&users).Error
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	ret := make([]UserResource, len(users))
+	for i := 0; i < len(users); i++ {
+		ptr := &ret[i]
+		ptr.FromUserModel(users[i])
+	}
+
+	bytes, err := json.Marshal(ret)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	_, err = w.Write(bytes)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+}
+
+func (c *Controller) CreateUser(w http.ResponseWriter, r *http.Request) {
+	bodybytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	resource := UserResource{}
+	err = json.Unmarshal(bodybytes, &resource)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	user := resource.ToUserModel()
+	err = c.db.Create(&user).Error
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	ret := &UserResource{}
+	ret.FromUserModel(user)
+
+	bytes, err := json.Marshal(ret)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	_, err = w.Write(bytes)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+}
+
+func (c *Controller) DeleteUser(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	userId := ctx.URLParams["id"]
+
+	user := User{}
+	err := c.db.Find(&user, userId).Error
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	err = c.db.Delete(&user).Error
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	resource := &UserResource{}
+	resource.FromUserModel(user)
+
+	bytes, err := json.Marshal(resource)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	_, err = w.Write(bytes)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
 }
 
 //
@@ -321,6 +425,19 @@ func (u *User) BeforeCreate() error {
 		if !strings.Contains(ValidUsernameChars, string(char)) {
 			return EBadUsernameChar
 		}
+	}
+	return nil
+}
+
+func (u *User) AfterDelete(txn *gorm.DB) error {
+	users := []User{}
+	nusers := 0
+
+	if err := txn.Find(&users).Count(&nusers).Error; err != nil {
+		return err
+	}
+	if nusers <= 0 {
+		return fmt.Errorf("Cannot delete last remaining user from DB")
 	}
 	return nil
 }

@@ -1,11 +1,18 @@
 package host
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 
 	. "gopkg.in/check.v1"
 
 	"github.com/jinzhu/gorm"
+	"github.com/zenazn/goji/web"
 )
 
 type UsersTestSuite struct {
@@ -29,6 +36,113 @@ func (ts *UsersTestSuite) TearDownTest(c *C) {
 
 //
 // Tests
+//
+
+func (ts *UsersTestSuite) TestGetCreateEndpointHandlers(c *C) {
+
+	createUser := func(name string) UserResource {
+		jsonStrFmt := `{
+			"Name":     "%s",
+			"Password": "weakpass",
+			"Comment":  "test user"
+		}`
+
+		jsonStr := fmt.Sprintf(jsonStrFmt, name)
+		req, err := http.NewRequest("POST", "/dont/care", bytes.NewBufferString(jsonStr))
+		c.Assert(err, IsNil)
+
+		rec := httptest.NewRecorder()
+
+		// perform the request
+		ts.controller.CreateUser(rec, req)
+
+		// check that response is valid json resource
+		bodybytes, err := ioutil.ReadAll(rec.Body)
+		c.Assert(err, IsNil)
+
+		if rec.Code != http.StatusOK {
+			c.Log("Response code:", rec.Code, ". Body:", string(bodybytes))
+			c.Fail()
+		}
+
+		resource := UserResource{}
+		err = json.Unmarshal(bodybytes, &resource)
+		c.Assert(err, IsNil)
+
+		c.Assert(resource.ID, Not(Equals), 0)
+		c.Assert(resource.Name, Equals, name)
+		c.Assert(resource.Password, Equals, "")
+
+		return resource
+	}
+
+	getUsers := func() []UserResource {
+		req, err := http.NewRequest("GET", "/dont/care", &bytes.Buffer{})
+		c.Assert(err, IsNil)
+
+		rec := httptest.NewRecorder()
+
+		// perform the request
+		ts.controller.GetUsers(rec, req)
+
+		// check that response is valid json resource
+		bodybytes, err := ioutil.ReadAll(rec.Body)
+		c.Assert(err, IsNil)
+
+		if rec.Code != http.StatusOK {
+			c.Log("Response code:", rec.Code, ". Body:", string(bodybytes))
+			c.Fail()
+		}
+
+		resources := []UserResource{}
+		err = json.Unmarshal(bodybytes, &resources)
+		c.Assert(err, IsNil)
+
+		return resources
+	}
+
+	deleteUser := func(id int64) UserResource {
+		req, err := http.NewRequest("GET", "/dont/care", &bytes.Buffer{})
+		c.Assert(err, IsNil)
+
+		rec := httptest.NewRecorder()
+
+		// perform the request
+		ts.controller.DeleteUser(web.C{URLParams: map[string]string{"id": fmt.Sprint(id)}}, rec, req)
+
+		// check that response is valid json resource
+		bodybytes, err := ioutil.ReadAll(rec.Body)
+		c.Assert(err, IsNil)
+
+		if rec.Code != http.StatusOK {
+			c.Log("Response code:", rec.Code, ". Body:", string(bodybytes))
+			c.Fail()
+		}
+
+		resource := UserResource{}
+		err = json.Unmarshal(bodybytes, &resource)
+		c.Assert(err, IsNil)
+
+		return resource
+	}
+
+	// create 2 users
+	u1 := createUser("testUser1")
+	u2 := createUser("testUser2")
+
+	// ensure they appear in the 'get' response
+	c.Assert(getUsers(), HasLen, 3) // ["admin", "testUser1", "testUser2"]
+
+	// delete the users
+	c.Assert(deleteUser(u1.ID), DeepEquals, u1)
+	c.Assert(deleteUser(u2.ID), DeepEquals, u2)
+
+	// ensure they don't appear in the 'get' response
+	c.Assert(getUsers(), HasLen, 1) // ["admin"]
+}
+
+//
+// Validations tests
 //
 
 func (ts *UsersTestSuite) TestPasswordHashedBeforeSave(c *C) {
@@ -61,7 +175,7 @@ func (ts *UsersTestSuite) TestPasswordNotSavedToDB(c *C) {
 	c.Assert(u2.Name, Equals, u1.Name)
 }
 
-func (ts *UsersTestSuite) TestUsernameLength(c *C) {
+func (ts *UsersTestSuite) TestUsernameLengthValidation(c *C) {
 	badNames := []string{
 		strings.Repeat("a", 42), // too long
 		"x",           // too short
@@ -76,7 +190,7 @@ func (ts *UsersTestSuite) TestUsernameLength(c *C) {
 	}
 }
 
-func (ts *UsersTestSuite) TestPasswordLength(c *C) {
+func (ts *UsersTestSuite) TestPasswordLengthValidation(c *C) {
 	badPasswords := []string{
 		strings.Repeat("a", 42),
 		"x",
@@ -88,6 +202,15 @@ func (ts *UsersTestSuite) TestPasswordLength(c *C) {
 		c.Assert(user.BeforeSave(), Not(Equals), IsNil)
 	}
 }
+
+func (ts *UsersTestSuite) TestCannotDeleteLastUser(c *C) {
+	err := ts.db.Delete(&User{}, 1).Error
+	c.Assert(err, Not(IsNil))
+}
+
+//
+// File generation tests
+//
 
 func (ts *UsersTestSuite) TestPasswdFileContents(c *C) {
 	users := []User{
