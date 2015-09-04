@@ -18,6 +18,10 @@ const (
 	DefaultHostname = "ncc1701"
 )
 
+//
+// Endpoint handlers
+//
+
 func (c *Controller) GetHostname(w http.ResponseWriter, r *http.Request) {
 	host := Hostname{}
 	err := c.db.First(&host, 1).Error
