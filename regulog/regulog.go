@@ -114,6 +114,10 @@ func (w *streamLogger) output(timeStr, level, msg string) {
 	w.linebuf = append(w.linebuf, ' ')
 	w.linebuf = append(w.linebuf, msg...)
 
+	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
+		w.linebuf = append(w.linebuf, '\n')
+	}
+
 	w.stream.Write(w.linebuf)
 }
 
