@@ -1,9 +1,9 @@
 package main
 
 import (
-	"log"
 	"os"
 	"rocketship/commander"
+	"rocketship/regulog"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/jinzhu/gorm"
@@ -20,28 +20,29 @@ func main() {
 	kingpin.Version("0.0.1")
 	kingpin.Parse()
 
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := regulog.New("preflight")
 
 	die := func(err error) {
-		logger.Fatalln("Exiting due to:", err.Error())
+		logger.Errorln("Exiting due to:", err.Error())
+		os.Exit(1)
 	}
 
-	logger.Println("Connecting to", *DbType, "using DSN", *DbDSN)
+	logger.Infoln("Connecting to", *DbType, "using DSN", *DbDSN)
 	db, err := gorm.Open(*DbType, *DbDSN)
 	if err != nil {
 		die(err)
 	}
 
-	cmdr := commander.New(&db)
+	cmdr := commander.New(&db, logger)
 
-	logger.Println("Migrating database")
+	logger.Infoln("Migrating database")
 	cmdr.MigrateDB()
 
-	logger.Println("Seeding database")
+	logger.Infoln("Seeding database")
 	cmdr.SeedDB()
 
-	logger.Println("Regenerating config files")
+	logger.Infoln("Regenerating config files")
 	cmdr.RewriteFiles()
 
-	logger.Println("Preflight finished")
+	logger.Infoln("Preflight finished")
 }

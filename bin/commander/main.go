@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"rocketship/commander"
+	"rocketship/regulog"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/facebookgo/httpdown"
@@ -30,7 +30,7 @@ func main() {
 		db  gorm.DB
 		err error
 
-		logger   = log.New(os.Stderr, "", log.LstdFlags)
+		logger   = regulog.New("commander")
 		sigChan  = make(chan os.Signal)
 		dbOpened = false
 	)
@@ -39,7 +39,8 @@ func main() {
 	kingpin.Parse()
 
 	die := func(err error) {
-		logger.Fatalln("Exiting due to:", err.Error())
+		logger.Errorln("Exiting due to:", err.Error())
+		os.Exit(1)
 	}
 
 	reconnectDB := func() {
@@ -47,7 +48,7 @@ func main() {
 			db.Close() // close the conn before connecting
 		}
 
-		logger.Println("Connecting to", *DbType, "using DSN", *DbDSN)
+		logger.Infoln("Connecting to", *DbType, "using DSN", *DbDSN)
 		db, err = gorm.Open(*DbType, *DbDSN)
 		if err != nil {
 			die(err)
@@ -56,18 +57,18 @@ func main() {
 	}
 
 	startCommander := func() {
-		logger.Println("Initializing commander server database")
+		logger.Infoln("Initializing commander server database")
 		reconnectDB()
 
 		// Start an http server with this radio app
-		logger.Println("Starting commander server on port", *ListenPort)
+		logger.Infoln("Starting commander server on port", *ListenPort)
 		var err error
 		svr, err = httpdown.HTTP{
 			StopTimeout: 5 * time.Second,
 			KillTimeout: 5 * time.Second,
 		}.ListenAndServe(&http.Server{
 			Addr:    fmt.Sprintf("127.0.0.1:%d", *ListenPort),
-			Handler: commander.New(&db),
+			Handler: commander.New(&db, logger),
 		})
 		if err != nil {
 			die(fmt.Errorf("Failed to start http server: %s", err))
@@ -82,17 +83,17 @@ func main() {
 	}
 
 	mainLoop := func() {
-		logger.Println("Initializing signal handler")
+		logger.Infoln("Initializing signal handler")
 		signal.Notify(sigChan, syscall.SIGINT)
 
-		logger.Println("Starting main signal handler loop")
+		logger.Infoln("Starting main signal handler loop")
 		for sig := range sigChan {
 			switch sig {
 			case syscall.SIGHUP:
-				logger.Println("Received SIGHUP - reloading")
+				logger.Infoln("Received SIGHUP - reloading")
 				restartCommander()
 			case syscall.SIGINT, syscall.SIGTERM:
-				logger.Println("Received sig:", sig, "- terminating")
+				logger.Infoln("Received sig:", sig, "- terminating")
 				svr.Stop()
 				return
 			}
@@ -104,6 +105,6 @@ func main() {
 
 	mainLoop()
 
-	logger.Println("Commander server exited")
+	logger.Infoln("Commander server exited")
 
 }

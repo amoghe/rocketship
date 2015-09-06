@@ -8,6 +8,7 @@ import (
 	"rocketship/commander/modules/radio"
 	"rocketship/commander/modules/ssh"
 	"rocketship/commander/modules/syslog"
+	"rocketship/regulog"
 
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
@@ -24,12 +25,14 @@ type Commander struct {
 	controllers []Controller
 	mux         *web.Mux
 	db          *gorm.DB
+	log         regulog.Logger
 }
 
-func New(db *gorm.DB) *Commander {
+func New(db *gorm.DB, log regulog.Logger) *Commander {
 	c := Commander{
 		db:  db,
 		mux: web.New(),
+		log: log,
 	}
 
 	// crashcorder controller
@@ -66,22 +69,25 @@ func (c *Commander) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Commander) MigrateDB() error {
-	for _, c := range c.controllers {
-		c.MigrateDB()
+	c.log.Infoln("Migrating database")
+	for _, ctrl := range c.controllers {
+		ctrl.MigrateDB()
 	}
 	return nil
 }
 
 func (c *Commander) SeedDB() error {
-	for _, c := range c.controllers {
-		c.SeedDB()
+	c.log.Infoln("Seeding database")
+	for _, ctrl := range c.controllers {
+		ctrl.SeedDB()
 	}
 	return nil
 }
 
 func (c *Commander) RewriteFiles() error {
-	for _, c := range c.controllers {
-		c.RewriteFiles()
+	c.log.Infoln("Rewriting all configuration files")
+	for _, ctrl := range c.controllers {
+		ctrl.RewriteFiles()
 	}
 	return nil
 }
