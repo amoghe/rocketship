@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"rocketship/regulog"
+
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 )
@@ -15,29 +17,35 @@ const (
 	EHostname = URLPrefix + "/hostname"
 	// Endpoint at which domain can be configured
 	EDomain = URLPrefix + "/domain"
+	// Endpoint at which users can be configured
+	EUsers   = URLPrefix + "/users"
+	EUsersID = EUsers + "/:id"
 )
 
 type Controller struct {
 	db  *gorm.DB
 	mux *web.Mux
-
-	commitChan      chan func() error
-	commitErrorChan chan error
+	log regulog.Logger
 }
 
-func NewController(db *gorm.DB) *Controller {
+func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
 
 	c := Controller{
 		db:  db,
 		mux: web.New(),
+		log: logger,
 	}
 
+	// Hostname endpoints
 	c.mux.Get(EHostname, c.GetHostname)
 	c.mux.Put(EHostname, c.PutHostname)
-
+	// Domain endpoints
 	c.mux.Get(EDomain, c.GetDomain)
 	c.mux.Put(EDomain, c.PutDomain)
-
+	// User endpoints
+	c.mux.Get(EUsers, c.GetUsers)
+	c.mux.Post(EUsers, c.CreateUser)
+	c.mux.Delete(EUsersID, c.DeleteUser)
 	return &c
 }
 
@@ -52,12 +60,17 @@ func (c *Controller) RoutePrefix() string {
 }
 
 func (c *Controller) MigrateDB() {
+	c.log.Infoln("Migrating hostname table")
 	c.db.AutoMigrate(&Hostname{})
+	c.log.Infoln("Migrating domain table")
 	c.db.AutoMigrate(&Domain{})
 
+	c.log.Infoln("Migrating DHCP profiles table")
 	c.db.AutoMigrate(&DHCPProfile{})
+	c.log.Infoln("Migrating interfaces table")
 	c.db.AutoMigrate(&InterfaceConfig{})
 
+	c.log.Infoln("Migrating users table")
 	c.db.AutoMigrate(&User{})
 }
 

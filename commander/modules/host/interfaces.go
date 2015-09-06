@@ -165,6 +165,8 @@ func (c *Controller) CreateDHCPProfile(w http.ResponseWriter, r *http.Request) {
 
 // RewriteInterfacesFile rewrites the network interfaces configuration file.
 func (c *Controller) RewriteInterfacesFile() error {
+	c.log.Infoln("Rewriting interfaces file")
+
 	str, err := c.interfacesConfigFileContents()
 	if err != nil {
 		return err
@@ -180,6 +182,8 @@ func (c *Controller) RewriteInterfacesFile() error {
 
 // RewriteDhClientConf file rewrites the dhclient.conf configuration file.
 func (c *Controller) RewriteDhclientConfFile() error {
+	c.log.Infoln("Rewriting dhclient config file")
+
 	str, err := c.dhclientConfFileContents()
 	if err != nil {
 		return err
@@ -617,6 +621,7 @@ func (c *Controller) seedInterface() {
 		iface   = InterfaceConfig{Name: "eth0", Mode: ModeDHCP, DHCPProfileID: 1}
 	)
 
+	c.log.Infoln("Seeding interface config")
 	c.db.FirstOrCreate(&profile, profile)
 	c.db.FirstOrCreate(&iface, iface)
 }

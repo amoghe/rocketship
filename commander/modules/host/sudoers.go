@@ -12,6 +12,8 @@ var (
 )
 
 func (c *Controller) RewriteSudoersFile() error {
+	c.log.Infoln("Rewriting sudoers file")
+
 	contents, err := c.sudoersFileContents()
 	if err != nil {
 		return err

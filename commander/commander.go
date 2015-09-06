@@ -36,27 +36,27 @@ func New(db *gorm.DB, log regulog.Logger) *Commander {
 	}
 
 	// crashcorder controller
-	cc := crashcorder.NewController(db)
+	cc := crashcorder.NewController(db, log)
 	c.mux.Handle(cc.RoutePrefix()+"/*", cc)
 	c.controllers = append(c.controllers, cc)
 
 	// Host controller
-	hc := host.NewController(db)
+	hc := host.NewController(db, log)
 	c.mux.Handle(hc.RoutePrefix()+"/*", hc)
 	c.controllers = append(c.controllers, hc)
 
 	// Radio controller
-	rc := radio.NewController(db)
+	rc := radio.NewController(db, log)
 	c.mux.Handle(rc.RoutePrefix()+"/*", rc)
 	c.controllers = append(c.controllers, rc)
 
 	// SSH controller
-	sc := ssh.NewController(db)
+	sc := ssh.NewController(db, log)
 	c.mux.Handle(sc.RoutePrefix()+"/*", sc)
 	c.controllers = append(c.controllers, sc)
 
 	// Syslog controller
-	ssc := syslog.NewController(db)
+	ssc := syslog.NewController(db, log)
 	c.mux.Handle(ssc.RoutePrefix()+"/*", ssc)
 	c.controllers = append(c.controllers, ssc)
 
@@ -87,7 +87,9 @@ func (c *Commander) SeedDB() error {
 func (c *Commander) RewriteFiles() error {
 	c.log.Infoln("Rewriting all configuration files")
 	for _, ctrl := range c.controllers {
-		ctrl.RewriteFiles()
+		if err := ctrl.RewriteFiles(); err != nil {
+			c.log.Warningf("Error: %s", err)
+		}
 	}
 	return nil
 }

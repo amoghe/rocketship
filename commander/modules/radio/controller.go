@@ -14,6 +14,7 @@ import (
 
 	"rocketship/commander/modules/host"
 	"rocketship/radio"
+	"rocketship/regulog"
 )
 
 const (
@@ -28,10 +29,11 @@ const (
 type Controller struct {
 	db  *gorm.DB
 	mux *web.Mux
+	log regulog.Logger
 }
 
-func NewController(db *gorm.DB) *Controller {
-	return &Controller{db: db, mux: web.New()}
+func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
+	return &Controller{db: db, mux: web.New(), log: logger}
 }
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
@@ -244,6 +246,7 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 //
 
 func (c *Controller) RewriteFiles() error {
+	c.log.Infoln("Rewriting radio configuration file")
 	// ensure radio conf dir
 	if _, err := os.Stat(RadioConfDir); os.IsNotExist(err) {
 		os.Mkdir(RadioConfDir, 0750)
@@ -407,6 +410,7 @@ type RadioConfigResource RadioConfig
 //
 
 func (c *Controller) MigrateDB() {
+	c.log.Infoln("Migrating radio configuration tables")
 	for _, table := range []interface{}{
 		&RadioConfig{},
 		&InfoRecipient{},
@@ -418,6 +422,7 @@ func (c *Controller) MigrateDB() {
 }
 
 func (c *Controller) SeedDB() {
+	c.log.Infoln("Seeding radio configuration")
 	// always create one row in the radio config table (singleton row)
 	c.db.FirstOrCreate(&RadioConfig{})
 }

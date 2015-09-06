@@ -3,6 +3,8 @@ package host
 import (
 	"strings"
 
+	"rocketship/regulog"
+
 	"github.com/jinzhu/gorm"
 
 	. "gopkg.in/check.v1"
@@ -16,7 +18,7 @@ func (ts *SudoersTestSuite) SetUpTest(c *C) {
 	db, err := gorm.Open("sqlite3", "file::memory:?cache=shared")
 	c.Assert(err, IsNil)
 
-	ts.controller = NewController(&db)
+	ts.controller = NewController(&db, regulog.NewNull(""))
 }
 
 func (ts *SudoersTestSuite) TestSudoersFileContents(c *C) {

@@ -77,6 +77,8 @@ func (c *Controller) PutHostname(w http.ResponseWriter, r *http.Request) {
 
 // RewriteHostnameFile rewrites the hostname file.
 func (c *Controller) RewriteHostnameFile() error {
+	c.log.Infoln("Rewriting hostname file")
+
 	contents, err := c.hostnameFileContents()
 	if err != nil {
 		return err
@@ -146,5 +148,6 @@ func (h *HostnameResource) FromHostnameModel(m Hostname) {
 //
 
 func (c *Controller) seedHostname() {
+	c.log.Infoln("Seeding hostname")
 	c.db.FirstOrCreate(&Hostname{Hostname: DefaultHostname})
 }

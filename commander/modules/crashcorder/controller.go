@@ -14,6 +14,7 @@ import (
 	"rocketship/commander/modules/host"
 	"rocketship/commander/modules/radio"
 	"rocketship/crashcorder"
+	"rocketship/regulog"
 )
 
 const (
@@ -28,10 +29,11 @@ const (
 )
 
 type Controller struct {
+	log regulog.Logger
 }
 
-func NewController(*gorm.DB) *Controller {
-	return &Controller{}
+func NewController(_ *gorm.DB, log regulog.Logger) *Controller {
+	return &Controller{log: log}
 }
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
@@ -46,6 +48,8 @@ func (c *Controller) RoutePrefix() string {
 }
 
 func (c *Controller) RewriteFiles() error {
+	c.log.Infoln("Rewriting crashcorder config file")
+
 	// ensure crashcorder dir
 	if _, err := os.Stat(CrashcorderConfDir); os.IsNotExist(err) {
 		err = os.Mkdir(CrashcorderConfDir, 0750)

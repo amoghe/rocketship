@@ -9,6 +9,8 @@ import (
 	"net/mail"
 	"testing"
 
+	"rocketship/regulog"
+
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 
@@ -40,7 +42,7 @@ func (ts *RadioTestSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 
 	ts.db = db
-	ts.controller = NewController(&ts.db)
+	ts.controller = NewController(&ts.db, regulog.NewNull(""))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

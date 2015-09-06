@@ -257,6 +257,8 @@ func (c *Controller) DeleteUser(ctx web.C, w http.ResponseWriter, r *http.Reques
 //
 
 func (c *Controller) RewritePasswdFile() error {
+	c.log.Infoln("Rewriting passwd file")
+
 	contents, err := c.passwdFileContents()
 	if err != nil {
 		return err
@@ -271,6 +273,8 @@ func (c *Controller) RewritePasswdFile() error {
 }
 
 func (c *Controller) RewriteShadowFile() error {
+	c.log.Infoln("Rewriting shadow file")
+
 	contents, err := c.shadowFileContents()
 	if err != nil {
 		return err
@@ -285,6 +289,8 @@ func (c *Controller) RewriteShadowFile() error {
 }
 
 func (c *Controller) EnsureHomedirs() error {
+	c.log.Infoln("Ensuring all homedirs exist")
+
 	users := []User{}
 	failed := map[string]bool{}
 
@@ -296,18 +302,19 @@ func (c *Controller) EnsureHomedirs() error {
 	for _, user := range users {
 		dirname := fmt.Sprintf("/home/%s", user.Name)
 
+		c.log.Debugln("Ensuring homedir for ", user.Name, " at ", dirname)
 		err = os.Mkdir(dirname, 0777)
 		if err != nil {
 			failed[user.Name] = true
 			continue
 		}
 
+		c.log.Debugf("Ensuring %s has homedir owned by %d:%d", user.Name, user.Uid(), user.Gid())
 		err = os.Chown(dirname, user.Uid(), user.Gid())
 		if err != nil {
 			failed[user.Name] = true
 			continue
 		}
-
 	}
 
 	// TODO:  If there were errors creating any of the homedirs, return them
@@ -553,5 +560,6 @@ func (u *UserResource) FromUserModel(m User) {
 //
 
 func (c *Controller) seedUsers() {
+	c.log.Infoln("Seeding users")
 	c.db.FirstOrCreate(&User{Name: "admin", Password: "password"})
 }

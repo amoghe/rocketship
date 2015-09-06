@@ -51,6 +51,8 @@ var (
 )
 
 func (c *Controller) RewriteGroupsFile() error {
+	c.log.Infoln("Rewriting groups file")
+
 	contents, err := c.groupsFileContents()
 	if err != nil {
 		return err

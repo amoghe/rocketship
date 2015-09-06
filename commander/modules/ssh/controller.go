@@ -11,6 +11,8 @@ import (
 	"text/template"
 	"time"
 
+	"rocketship/regulog"
+
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 )
@@ -35,12 +37,14 @@ const (
 type Controller struct {
 	db  *gorm.DB
 	mux *web.Mux
+	log regulog.Logger
 }
 
-func NewController(db *gorm.DB) *Controller {
+func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
 	c := Controller{
 		mux: web.New(),
 		db:  db,
+		log: logger,
 	}
 
 	c.mux.Get(ESshConfig, c.GetSshConfig)
@@ -115,6 +119,7 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 //
 
 func (c *Controller) RewriteFiles() error {
+	c.log.Infoln("Rewriting SSH configuration files")
 	// helper func to rewrite ssh_config file
 	regenerateSshConfigFile := func() error {
 		contents, err := c.sshConfigFileContents()
@@ -135,6 +140,7 @@ func (c *Controller) RewriteFiles() error {
 			return nil
 		}
 
+		c.log.Infoln("Regenerating host SSH keys")
 		cmd := &exec.Cmd{
 			Path: "/usr/bin/ssh-keygen",
 			Args: []string{"-A"},
@@ -220,10 +226,12 @@ type SshConfig struct {
 //
 
 func (c *Controller) MigrateDB() {
+	c.log.Infoln("Migrating SSH tables")
 	c.db.AutoMigrate(&SshConfig{AllowPasswordAuth: true, AllowPubkeyAuth: true})
 }
 
 func (c *Controller) SeedDB() {
+	c.log.Infoln("Seeding SSH tables")
 	c.db.FirstOrCreate(&SshConfig{ID: 1, AllowPasswordAuth: true})
 }
 

@@ -1,6 +1,8 @@
 package host
 
 import (
+	"rocketship/regulog"
+
 	. "gopkg.in/check.v1"
 
 	"github.com/jinzhu/gorm"
@@ -16,7 +18,7 @@ func (ts *HostnameTestSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 	ts.db = db
 
-	ts.controller = NewController(&ts.db)
+	ts.controller = NewController(&ts.db, regulog.NewNull("test"))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

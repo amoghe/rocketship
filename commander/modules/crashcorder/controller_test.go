@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"rocketship/regulog"
+
 	. "gopkg.in/check.v1"
 )
 
@@ -20,7 +22,7 @@ func Test(t *testing.T) {
 }
 
 func (ts *CrashcorderTestSuite) TestFileContents(c *C) {
-	ctrl := Controller{}
+	ctrl := Controller{log: regulog.NewNull("")}
 
 	contents, err := ctrl.crashcorderConfigFileContents()
 	c.Assert(err, IsNil)

@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"rocketship/regulog"
+
 	"github.com/jinzhu/gorm"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -30,7 +32,7 @@ func (ts *SshConfigTestSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 	ts.db = &db
 
-	ts.controller = NewController(ts.db)
+	ts.controller = NewController(ts.db, regulog.NewNull(""))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

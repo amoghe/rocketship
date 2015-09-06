@@ -3,6 +3,7 @@ package regulog
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log/syslog"
 	"os"
 	"runtime"
@@ -163,6 +164,14 @@ func New(name string) Logger {
 		tag:     name,
 		linebuf: []byte{},
 		stream:  os.Stderr,
+	}
+}
+
+func NewNull(name string) Logger {
+	return &streamLogger{
+		tag:     name,
+		linebuf: []byte{},
+		stream:  ioutil.Discard,
 	}
 }
 

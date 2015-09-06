@@ -12,6 +12,7 @@ import (
 	"github.com/zenazn/goji/web"
 
 	"rocketship/commander/modules/host"
+	"rocketship/regulog"
 )
 
 const (
@@ -22,11 +23,12 @@ const (
 type Controller struct {
 	db  *gorm.DB
 	mux *web.Mux
+	log regulog.Logger
 }
 
-func NewController(db *gorm.DB) *Controller {
+func NewController(db *gorm.DB, log regulog.Logger) *Controller {
 	// TODO: endpoints to en/disable the syslog daemon.
-	return &Controller{db: db, mux: web.New()}
+	return &Controller{db: db, mux: web.New(), log: log}
 }
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
@@ -44,6 +46,7 @@ func (c *Controller) RoutePrefix() string {
 //
 
 func (c *Controller) RewriteFiles() error {
+	c.log.Infoln("Rewriting syslog configuration files")
 	contents, err := c.syslogConfFileContents()
 	if err != nil {
 		return err

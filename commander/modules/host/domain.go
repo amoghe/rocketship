@@ -105,5 +105,6 @@ func (d DomainResource) ToDomainModel() Domain {
 //
 
 func (c *Controller) seedDomain() {
+	c.log.Infoln("Seeding domain")
 	c.db.FirstOrCreate(&Domain{Domain: DefaultDomain})
 }

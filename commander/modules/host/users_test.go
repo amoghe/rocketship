@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"strings"
 
+	"rocketship/regulog"
+
 	. "gopkg.in/check.v1"
 
 	"github.com/jinzhu/gorm"
@@ -25,7 +27,7 @@ func (ts *UsersTestSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 	ts.db = db
 
-	ts.controller = NewController(&ts.db)
+	ts.controller = NewController(&ts.db, regulog.NewNull(""))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

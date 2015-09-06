@@ -2,6 +2,7 @@ package host
 
 import (
 	"bytes"
+	"rocketship/regulog"
 	"strings"
 
 	. "gopkg.in/check.v1"
@@ -19,7 +20,7 @@ func (ts *InterfacesTestSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 	ts.db = db
 
-	ts.controller = NewController(&ts.db)
+	ts.controller = NewController(&ts.db, regulog.NewNull("test"))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

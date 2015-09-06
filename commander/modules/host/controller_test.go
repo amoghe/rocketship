@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"rocketship/regulog"
+
 	"github.com/jinzhu/gorm"
 
 	_ "fmt"
@@ -30,7 +32,7 @@ func (ts *ControllerTestSuite) SetUpSuite(c *C) {
 	c.Assert(err, IsNil)
 
 	ts.db = db
-	ts.controller = NewController(&ts.db)
+	ts.controller = NewController(&ts.db, regulog.NewNull(""))
 	ts.server = httptest.NewServer(ts.controller)
 }
 
