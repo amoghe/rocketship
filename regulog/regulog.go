@@ -2,10 +2,16 @@ package regulog
 
 import (
 	"fmt"
+	"io"
 	"log/syslog"
 	"os"
+	"runtime"
+	"sync"
+	"time"
+)
 
-	"github.com/apsdehal/go-logger"
+const (
+	timeFormatStr = "Mon Jan 2 15:04:05"
 )
 
 // Logger defines a minimal logging interface.
@@ -54,43 +60,110 @@ func (w *wrappedSyslogWriter) Errorln(v ...interface{}) {
 	w.Writer.Err(fmt.Sprintln(v...))
 }
 
-// wraps around apsdehal.Logger to  make it adhere to the `Logger` interface
-type wrappedLogger struct {
-	logger.Logger
+// streamLogger implements the Logger interface and writes to the specified io.Writer ("stream").
+// It mimics the stdlib logger including memory optimizations such as minimizing calls to fmt.Sprintf
+// and using a shared buffer to format the message before writing it out.
+type streamLogger struct {
+	stream  io.Writer
+	tag     string
+	linebuf []byte
+	lock    sync.Mutex
 }
 
-func (w *wrappedLogger) Debugf(f string, v ...interface{}) {
-	w.Logger.Debug(fmt.Sprintf(f, v...))
+// If we ever want to print callers file:line info in the message.
+func (w *streamLogger) callerFileLine() (string, int) {
+	if _, file, line, ok := runtime.Caller(3); ok {
+		return file, line
+	}
+	return "???", 0
+
 }
-func (w *wrappedLogger) Debugln(v ...interface{}) {
-	w.Logger.Debug(fmt.Sprintln(v...))
+
+func (w *streamLogger) output(timeStr, level, msg string) {
+	// We need to serialize access to the linebuffer that is used to assemble the message \
+	// as well as the output stream we will print to.
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
+	// appends a fixed width string 'str' into byte buffer 'b'. Appends spaces if 'str' is too short.
+	fixedWidthStr := func(width int, str string, b []byte) []byte {
+		// Write as many bytes as 'width', writing spaces if we run out of chars
+		for i := 0; i < width; i++ {
+			if i < len(str) {
+				b = append(b, level[i])
+			} else {
+				b = append(b, ' ')
+			}
+		}
+		return b
+	}
+
+	// save memory, (re)use a buffer instead of relying on fmt.Sprintf to format the output string
+	w.linebuf = w.linebuf[:0]
+
+	w.linebuf = append(w.linebuf, timeStr...)
+	w.linebuf = append(w.linebuf, ' ')
+	w.linebuf = append(w.linebuf, w.tag...)
+	w.linebuf = append(w.linebuf, ' ')
+
+	w.linebuf = append(w.linebuf, '[')
+	w.linebuf = fixedWidthStr(5, level, w.linebuf)
+	w.linebuf = append(w.linebuf, ']')
+
+	w.linebuf = append(w.linebuf, ' ')
+	w.linebuf = append(w.linebuf, msg...)
+
+	w.stream.Write(w.linebuf)
 }
-func (w *wrappedLogger) Infof(f string, v ...interface{}) {
-	w.Logger.Info(fmt.Sprintf(f, v...))
+
+func (w *streamLogger) Debugf(f string, v ...interface{}) {
+	msg := fmt.Sprintf(f, v...)
+	now := time.Now().Format(timeFormatStr)
+	w.output(now, "DEBUG", msg)
 }
-func (w *wrappedLogger) Infoln(v ...interface{}) {
-	w.Logger.Info(fmt.Sprintln(v...))
+func (w *streamLogger) Debugln(v ...interface{}) {
+	msg := fmt.Sprintln(v...)
+	now := time.Now().Format(timeFormatStr)
+	w.output(now, "DEBUG", msg)
 }
-func (w *wrappedLogger) Warningf(f string, v ...interface{}) {
-	w.Logger.Warning(fmt.Sprintf(f, v...))
+func (w *streamLogger) Infof(f string, v ...interface{}) {
+	msg := fmt.Sprintf(f, v...)
+	now := time.Now().Format(timeFormatStr)
+	w.output(now, "INFO", msg)
 }
-func (w *wrappedLogger) Warningln(v ...interface{}) {
-	w.Logger.Warning(fmt.Sprintln(v...))
+func (w *streamLogger) Infoln(v ...interface{}) {
+	msg := fmt.Sprintln(v...)
+	now := time.Now().Format(timeFormatStr)
+	w.output(now, "INFO", msg)
 }
-func (w *wrappedLogger) Errorf(f string, v ...interface{}) {
-	w.Logger.Error(fmt.Sprintf(f, v...))
+func (w *streamLogger) Warningf(f string, v ...interface{}) {
+	msg := fmt.Sprintf(f, v...)
+	now := time.Now().Format(timeFormatStr)
+	w.output(now, "WARN", msg)
 }
-func (w *wrappedLogger) Errorln(v ...interface{}) {
-	w.Logger.Error(fmt.Sprintln(v...))
+func (w *streamLogger) Warningln(v ...interface{}) {
+	msg := fmt.Sprintln(v...)
+	now := time.Now().Format(timeFormatStr)
+	w.output(now, "WARN", msg)
+}
+func (w *streamLogger) Errorf(f string, v ...interface{}) {
+	msg := fmt.Sprintf(f, v...)
+	now := time.Now().Format(timeFormatStr)
+	w.output(now, "ERROR", msg)
+}
+func (w *streamLogger) Errorln(v ...interface{}) {
+	msg := fmt.Sprintln(v...)
+	now := time.Now().Format(timeFormatStr)
+	w.output(now, "ERROR", msg)
 }
 
 // New returns a Logger that logs to Stderr.
 func New(name string) Logger {
-	l, err := logger.New(name, 1, os.Stderr)
-	if err != nil {
-		panic(err)
+	return &streamLogger{
+		tag:     name,
+		linebuf: []byte{},
+		stream:  os.Stderr,
 	}
-	return &wrappedLogger{*l}
 }
 
 // NewSyslog returns a Logger that logs to Syslog.
