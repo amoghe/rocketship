@@ -88,7 +88,7 @@ func (c *Commander) RewriteFiles() error {
 	c.log.Infoln("Rewriting all configuration files")
 	for _, ctrl := range c.controllers {
 		if err := ctrl.RewriteFiles(); err != nil {
-			c.log.Warningf("Error: %s", err)
+			c.log.Warningf("Error: %s. Continuing...", err)
 		}
 	}
 	return nil
