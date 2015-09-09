@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	GroupsFilePath = "/etc/groups"
+	GroupsFilePath = "/etc/group"
 
 	// Datum from which we start computing gid's for configured users.
 	GIDDatum = 2000
