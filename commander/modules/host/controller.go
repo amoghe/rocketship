@@ -20,6 +20,9 @@ const (
 	// Endpoint at which users can be configured
 	EUsers   = URLPrefix + "/users"
 	EUsersID = EUsers + "/:id"
+	// Endpoint for interface configur
+	EInterfaces   = URLPrefix + "/interfaces"
+	EInterfacesID = EInterfaces + "/:id"
 )
 
 type Controller struct {
@@ -46,6 +49,8 @@ func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
 	c.mux.Get(EUsers, c.GetUsers)
 	c.mux.Post(EUsers, c.CreateUser)
 	c.mux.Delete(EUsersID, c.DeleteUser)
+	// Interfaces endpoints
+	c.mux.Get(EInterfaces, c.GetInterfaces)
 	return &c
 }
 
