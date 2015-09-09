@@ -164,9 +164,9 @@ func (ts *InterfacesTestSuite) TestDhclientConfFileGeneration(c *C) {
 	c.Assert(err, IsNil)
 
 	// Ensure a section exists for dhcp interface
-	c.Assert(strings.Contains(string(filecontents), "interface eth0 {"), Equals, true)
+	c.Assert(strings.Contains(string(filecontents), "interface \"eth0\" {"), Equals, true)
 	// No section for static interfaces
-	c.Assert(strings.Contains(string(filecontents), "interface test0 {"), Equals, false)
+	c.Assert(strings.Contains(string(filecontents), "interface \"test0\" {"), Equals, false)
 }
 
 func (ts *InterfacesTestSuite) TestDhclientConfFileGenerationWithOverrides(c *C) {

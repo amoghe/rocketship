@@ -377,7 +377,7 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 			lines = append(lines, strings.Join(chunk, ", "))
 		}
 		return indentStr + clause + " " +
-			strings.Join(lines, "\n"+indentStr+strings.Repeat(" ", len(clause)+1)) + ";\n"
+			strings.Join(lines, ",\n"+indentStr+strings.Repeat(" ", len(clause)+1)) + ";\n"
 	}
 
 	sectionForMap := func(indent int, clause string, elems map[string]string) string {
@@ -422,7 +422,7 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 		return ret
 	}
 
-	ret.WriteString(fmt.Sprintf("interface %s {\n", iface.Name))
+	ret.WriteString(fmt.Sprintf("interface \"%s\" {\n", iface.Name))
 
 	ret.WriteString(sectionForMap(2, "", decodeMap(dhcpProfile.TimingOptions))) // Timing options are not 'named'
 	ret.WriteString(sectionForMap(2, "send", decodeMap(dhcpProfile.SendOptions)))
