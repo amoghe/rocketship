@@ -33,6 +33,24 @@ func (ts *InterfacesTestSuite) TearDownTest(c *C) {
 // DB Tests
 //
 
+func (ts *InterfacesTestSuite) TestInterfaceNameCannotBeChanged(c *C) {
+	test := InterfaceConfig{
+		Name:    "test",
+		Mode:    ModeStatic,
+		Address: "1.2.3.4",
+		Gateway: "1.2.3.4",
+		Netmask: "255.255.255.0",
+	}
+
+	err := ts.db.Create(&test).Error
+	c.Assert(err, IsNil)
+
+	test.Name = "foobar"
+
+	err = ts.db.Save(&test).Error
+	c.Assert(err, Not(IsNil))
+}
+
 func (ts *InterfacesTestSuite) TestSaveInterfaceConfigShouldFailWithInvalidIPs(c *C) {
 	err := ts.db.Create(&InterfaceConfig{Name: "test", Mode: ModeStatic}).Error
 	c.Assert(err, Not(IsNil))

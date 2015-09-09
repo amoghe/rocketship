@@ -510,6 +510,17 @@ func (i *InterfaceConfig) BeforeSave(txn *gorm.DB) error {
 	}
 }
 
+func (i *InterfaceConfig) BeforeUpdate(txn *gorm.DB) error {
+	temp := InterfaceConfig{}
+	if txn.Find(&temp, i.ID).Error != nil {
+		return fmt.Errorf("(BeforeUpdate) Unknown interface: %s [%d]", i.Name, i.ID)
+	}
+	if i.Name != temp.Name {
+		return fmt.Errorf("Cannot update the name of the %s interface", temp.Name)
+	}
+	return nil
+}
+
 func (d *DHCPProfile) BeforeCreate(txn *gorm.DB) error {
 	if len(d.RequestOptions) <= 0 {
 		txn.Model(d).Update(DHCPProfile{
