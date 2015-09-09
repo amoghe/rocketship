@@ -147,14 +147,8 @@ func (c *Controller) RewriteFiles() error {
 			Dir:  SshConfigDirPath,
 		}
 		if err := cmd.Run(); err != nil {
-			err_prefix := "failed to regenerate SSH host keys"
-			switch err.(type) {
-			case *exec.ExitError:
-				out, _ := cmd.CombinedOutput()
-				return fmt.Errorf("%s: %s", err_prefix, out)
-			default:
-				return fmt.Errorf("%s: %s", err_prefix, err)
-			}
+			out, _ := cmd.CombinedOutput()
+			return fmt.Errorf("failed to regenerate SSH host keys: %s [output:%s]", err, out)
 		}
 
 		// Touch the marker file
