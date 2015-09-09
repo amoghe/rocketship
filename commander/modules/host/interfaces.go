@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
+	"rocketship/regulog"
 	"strings"
 
 	"github.com/jinzhu/gorm"
@@ -35,6 +36,9 @@ const (
 		"\"host-name\", \"netbios-name-servers\", \"netbios-scope\", \"interface-mtu\", " +
 		"\"rfc3442-classless-static-routes\", \"ntp-servers\", \"dhcp6.domain-search\", " +
 		"\"dhcp6.fqdn\", \"dhcp6.name-servers\", \"dhcp6.sntp-servers\"]"
+
+	IfupBinPath   = "/sbin/ifup"
+	IfdownBinPath = "/sbin/ifdown"
 )
 
 //
@@ -48,25 +52,15 @@ func (c *Controller) GetInterfaces(ctx web.C, w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	type interfaceConfigResource struct {
-		InterfaceStatus string
-		InterfaceConfig
-	}
-
-	resources := make([]interfaceConfigResource, len(ifaces))
+	resources := make([]InterfaceConfigResource, len(ifaces))
 	for i, r := range resources {
-		cmd := exec.Cmd{
-			Path: "/sbin/ifconfig",
-			Args: []string{ifaces[i].Name},
-		}
-		if err := cmd.Run(); err != nil {
+		output, err := (ifaceCtrl{Name: ifaces[i].Name}).Ifconfig()
+		if err != nil {
 			continue
 		}
-
-		output, _ := cmd.Output()
 		ptr := &r
 		ptr.InterfaceConfig = ifaces[i]
-		ptr.InterfaceStatus = string(output)
+		ptr.InterfaceStatus = output
 	}
 
 	bytes, err := json.Marshal(resources)
@@ -86,10 +80,54 @@ func (c *Controller) GetInterfaces(ctx web.C, w http.ResponseWriter, r *http.Req
 
 func (c *Controller) EditInterface(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	// Read from request
+	resource := InterfaceConfigResource{}
+	iface := resource.InterfaceConfig
+
+	// TODO: Ensure that the interface name is not being changed!
 
 	// save to db
+	if err := c.db.Save(&iface).Error; err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	// rewrite files
+	c.RewriteDhclientConfFile()
+	c.RewriteInterfacesFile()
 
 	// twiddle interface
+	if err := (ifaceCtrl{Name: resource.Name}).Flap(); err != nil {
+		// note the error
+	}
+
+	// load the struct from db (for the response)
+	if err := c.db.Find(&iface, iface.ID).Error; err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	// get the latest ifconfig output (for the response)
+	output, err := (ifaceCtrl{Name: iface.Name}).Ifconfig()
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+	resource.InterfaceStatus = output
+	resource.InterfaceConfig = iface
+
+	bytes, err := json.Marshal(resource)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	_, err = w.Write(bytes)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	return
 }
 
 func (c *Controller) GetDHCPProfiles(w http.ResponseWriter, r *http.Request) {
@@ -611,6 +649,11 @@ func (r DHCPProfileResource) ToDHCPProfileModel() (DHCPProfile, error) {
 	}, nil
 }
 
+type InterfaceConfigResource struct {
+	InterfaceConfig
+	InterfaceStatus string // contains 'ifconfig' output
+}
+
 //
 // DB Seed
 //
@@ -624,4 +667,73 @@ func (c *Controller) seedInterface() {
 	c.log.Infoln("Seeding interface config")
 	c.db.FirstOrCreate(&profile, profile)
 	c.db.FirstOrCreate(&iface, iface)
+}
+
+//
+// interface control - convenience struct to allow us to up/down/flap an interface.
+//
+
+type ifaceCtrl struct {
+	Name string
+	Log  regulog.Logger
+}
+
+func (i ifaceCtrl) Up(forceUp bool) error {
+	args := []string{i.Name}
+	if forceUp {
+		args = append(args, "-f")
+	}
+	cmd := exec.Cmd{
+		Path: IfupBinPath,
+		Args: args,
+	}
+	if output, err := cmd.Output(); err != nil || cmd.ProcessState.Success() != true {
+		i.Log.Warningln("Failed to ifup", i.Name, ". Output", output)
+		return fmt.Errorf("Failed to up interface %s: %s", i.Name, err)
+	}
+	return nil
+}
+
+func (i ifaceCtrl) Down() error {
+	cmd := exec.Cmd{
+		Path: IfdownBinPath,
+		Args: []string{i.Name},
+	}
+	if output, err := cmd.Output(); err != nil || cmd.ProcessState.Success() != true {
+		i.Log.Warningln("Failed to ifdown", i.Name, ". Output", output)
+		return fmt.Errorf("Failed to down interface %s: %s", i.Name, err)
+	}
+	return nil
+}
+
+func (i ifaceCtrl) Flap() error {
+	forceUp := false
+	i.Log.Infoln("Flapping interface", i.Name)
+
+	err := i.Down()
+	if err != nil {
+		i.Log.Warningf("Failed to down %s, forcing it back up", i.Name)
+		forceUp = true
+	}
+
+	err = i.Up(forceUp)
+	if err != nil {
+		i.Log.Warningf("Failed to down %s, forcing it back up", i.Name)
+		forceUp = true
+	}
+
+	if forceUp {
+		return fmt.Errorf("Interface %s may not have been reconfigured properly", i.Name)
+	}
+	return nil
+}
+
+func (i ifaceCtrl) Ifconfig() (string, error) {
+	cmd := exec.Cmd{
+		Path: "/sbin/ifconfig",
+		Args: []string{i.Name},
+	}
+	out, err := cmd.Output()
+	return string(out), err
+
 }
