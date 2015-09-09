@@ -189,7 +189,7 @@ func (ts *InterfacesTestSuite) TestDhclientConfFileGenerationWithOverrides(c *C)
 	c.Log(string(filecontents))
 
 	// Ensure a supersede section for the default hostname.
-	c.Assert(strings.Contains(string(filecontents), "supersede host-name ncc1701"), Equals, true)
+	c.Assert(strings.Contains(string(filecontents), "supersede host-name \"ncc1701\""), Equals, true)
 }
 
 //

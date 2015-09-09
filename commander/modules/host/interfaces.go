@@ -28,7 +28,7 @@ const (
 	ModeOverride = "override" // supercede, really
 
 	// Default options we request from the dhcp server
-	DefaultSendOptionsJSON    = "{\"hostname\": \"gethostname()\"}"
+	DefaultSendOptionsJSON    = "{\"host-name\": \"gethostname()\"}"
 	DefaultTimingOptionsJSON  = "{\"timeout\": \"10\", \"retry\": \"10\"}"
 	DefaultRequireOptionsJSON = "[\"subnet-mask\"]"
 	DefaultRequestOptionsJSON = "[\"subnet-mask\", \"broadcast-address\", \"time-offset\", " +
@@ -380,7 +380,7 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 			strings.Join(lines, ",\n"+indentStr+strings.Repeat(" ", len(clause)+1)) + ";\n"
 	}
 
-	sectionForMap := func(indent int, clause string, elems map[string]string) string {
+	sectionForMap := func(indent int, clause string, elems map[string]string, sep string) string {
 		var (
 			retbuf    = bytes.Buffer{}
 			indentStr = strings.Repeat(" ", indent)
@@ -388,9 +388,9 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 
 		for k, v := range elems {
 			if len(clause) > 0 {
-				retbuf.WriteString(fmt.Sprintf("%s%s %s %s;\n", indentStr, clause, k, v))
+				retbuf.WriteString(fmt.Sprintf("%s%s %s%s%s;\n", indentStr, clause, k, sep, v))
 			} else {
-				retbuf.WriteString(fmt.Sprintf("%s%s %s;\n", indentStr, k, v))
+				retbuf.WriteString(fmt.Sprintf("%s%s%s%s;\n", indentStr, k, sep, v))
 			}
 		}
 		return string(retbuf.Bytes())
@@ -424,8 +424,8 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 
 	ret.WriteString(fmt.Sprintf("interface \"%s\" {\n", iface.Name))
 
-	ret.WriteString(sectionForMap(2, "", decodeMap(dhcpProfile.TimingOptions))) // Timing options are not 'named'
-	ret.WriteString(sectionForMap(2, "send", decodeMap(dhcpProfile.SendOptions)))
+	ret.WriteString(sectionForMap(2, "", decodeMap(dhcpProfile.TimingOptions), " ")) // Timing options are not 'named'
+	ret.WriteString(sectionForMap(2, "send", decodeMap(dhcpProfile.SendOptions), " = "))
 	ret.WriteString(sectionForSlice(2, "request", decodeSlice(dhcpProfile.RequestOptions)))
 	ret.WriteString(sectionForSlice(2, "require", decodeSlice(dhcpProfile.RequireOptions)))
 
@@ -437,7 +437,8 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 		if err = c.db.First(&hostname).Error; err != nil {
 			return "", fmt.Errorf("failed to get hostname from db (for dhclient.conf): %s", err)
 		}
-		ret.WriteString(sectionForMap(2, "supersede", map[string]string{"host-name": hostname.Hostname}))
+		supersedeMap := map[string]string{"host-name": fmt.Sprintf("\"%s\"", hostname.Hostname)}
+		ret.WriteString(sectionForMap(2, "supersede", supersedeMap, " "))
 	}
 
 	if dhcpProfile.OverrideDomainName {
@@ -446,7 +447,8 @@ func (c *Controller) dhconfFileSection(iface InterfaceConfig) (string, error) {
 			return "", fmt.Errorf("failed to get domain from db (for dhclient.conf): %s", err)
 		}
 		if len(domain.Domain) > 0 {
-			ret.WriteString(sectionForMap(2, "supersede", map[string]string{"domain-name": domain.Domain}))
+			overrideMap := map[string]string{"domain-name": fmt.Sprintf("\"%s\"", domain.Domain)}
+			ret.WriteString(sectionForMap(2, "supersede", overrideMap, " "))
 		}
 	}
 
