@@ -89,6 +89,7 @@ func (c *Controller) SeedDB() {
 func (c *Controller) RewriteFiles() error {
 	for _, f := range []func() error{
 		c.RewriteHostnameFile,
+		c.RewriteEtcHostsFile,
 		c.RewritePasswdFile,
 		c.RewriteShadowFile,
 		c.RewriteGroupsFile,

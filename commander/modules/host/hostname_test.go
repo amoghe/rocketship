@@ -2,6 +2,7 @@ package host
 
 import (
 	"rocketship/regulog"
+	"strings"
 
 	. "gopkg.in/check.v1"
 
@@ -51,4 +52,11 @@ func (ts *HostnameTestSuite) TestHostnameFileContents(c *C) {
 	contents, err := ts.controller.hostnameFileContents()
 	c.Assert(err, IsNil)
 	c.Assert(string(contents), Equals, DefaultHostname+"\n")
+}
+
+func (ts *HostnameTestSuite) TestEtcHostsFileContents(c *C) {
+	contents, err := ts.controller.etcHostsFileContents()
+	c.Log(string(contents))
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(string(contents), "127.0.0.1 localhost"), Equals, true)
 }
