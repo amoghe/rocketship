@@ -96,6 +96,7 @@ func (c *Controller) RewriteFiles() error {
 		c.RewriteInterfacesFile,
 		c.RewriteDhclientConfFile,
 		c.RewriteSudoersFile,
+		c.RewriteResolvConf,
 
 		c.EnsureHomedirs,
 	} {
