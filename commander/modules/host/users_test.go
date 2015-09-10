@@ -11,6 +11,7 @@ import (
 
 	"rocketship/regulog"
 
+	_ "github.com/mattn/go-sqlite3"
 	. "gopkg.in/check.v1"
 
 	"github.com/jinzhu/gorm"

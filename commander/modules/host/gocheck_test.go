@@ -8,7 +8,6 @@ import (
 
 // Register the test suites we wish to run
 func init() {
-	Suite(&ControllerTestSuite{})
 	Suite(&HostnameTestSuite{})
 	Suite(&DomainTestSuite{})
 	Suite(&InterfacesTestSuite{})

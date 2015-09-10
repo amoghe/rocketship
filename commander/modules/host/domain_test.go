@@ -11,6 +11,8 @@ import (
 	"github.com/jinzhu/gorm"
 
 	. "gopkg.in/check.v1"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type DomainTestSuite struct {

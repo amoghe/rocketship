@@ -12,6 +12,8 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/jinzhu/gorm"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type HostnameTestSuite struct {
