@@ -284,3 +284,21 @@ func (r *InterfacesTestSuite) TestDHCPResourceToProfileConversion(c *C) {
 		c.Assert(err, Not(IsNil))
 	}
 }
+
+func (ts *InterfacesTestSuite) TestDefaultEntries(c *C) {
+	ifaces := []InterfaceConfig{}
+	profile := DHCPProfile{}
+
+	err := ts.db.Find(&ifaces).Error
+	c.Assert(err, IsNil)
+
+	err = ts.db.Find(&profile, 1).Error
+	c.Assert(err, IsNil)
+
+	// ensure one interface
+	c.Assert(len(ifaces), Equals, 1)
+
+	// ensure it is in dhcp mode, and uses the default profile
+	c.Assert(ifaces[0].Mode, Equals, ModeDHCP)
+	c.Assert(ifaces[0].DHCPProfileID, Equals, profile.ID)
+}
