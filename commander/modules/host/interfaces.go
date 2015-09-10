@@ -272,9 +272,16 @@ func (c *Controller) interfacesConfigFileSection(iface InterfaceConfig) string {
 	contents.WriteString("auto " + iface.Name + "\n")
 	contents.WriteString("iface " + iface.Name + " inet " + iface.Mode + "\n")
 	if iface.Mode == ModeStatic {
+		dom := Domain{}
+		c.db.Find(&dom, 1)
+
 		contents.WriteString("address " + iface.Address + "\n")
 		contents.WriteString("netmask " + iface.Netmask + "\n")
 		contents.WriteString("gateway " + iface.Gateway + "\n")
+		if len(dom.Domain) > 0 {
+			contents.WriteString("dns-search " + dom.Domain + "\n")
+			// contents.WriteString("dns-nameservers " + servers + "\n")
+		}
 	}
 
 	return string(contents.Bytes())
