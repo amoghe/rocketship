@@ -13,6 +13,7 @@ func init() {
 	Suite(&InterfacesTestSuite{})
 	Suite(&UsersTestSuite{})
 	Suite(&SudoersTestSuite{})
+	Suite(&ResolversTestSuite{})
 }
 
 // Hook up gocheck into the "go test" runner.

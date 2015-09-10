@@ -77,6 +77,9 @@ func (c *Controller) MigrateDB() {
 
 	c.log.Infoln("Migrating users table")
 	c.db.AutoMigrate(&User{})
+
+	c.log.Infoln("Migrating resolvers table")
+	c.db.AutoMigrate(&ResolversConfig{})
 }
 
 func (c *Controller) SeedDB() {
@@ -84,6 +87,7 @@ func (c *Controller) SeedDB() {
 	c.seedDomain()
 	c.seedInterface()
 	c.seedUsers()
+	c.seedResolvers()
 }
 
 func (c *Controller) RewriteFiles() error {
