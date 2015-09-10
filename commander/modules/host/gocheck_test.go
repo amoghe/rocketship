@@ -10,6 +10,7 @@ import (
 func init() {
 	Suite(&ControllerTestSuite{})
 	Suite(&HostnameTestSuite{})
+	Suite(&DomainTestSuite{})
 	Suite(&InterfacesTestSuite{})
 	Suite(&UsersTestSuite{})
 	Suite(&SudoersTestSuite{})
