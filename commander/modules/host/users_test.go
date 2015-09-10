@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -26,6 +27,9 @@ type UsersTestSuite struct {
 func (ts *UsersTestSuite) SetUpTest(c *C) {
 	db, err := gorm.Open("sqlite3", "file::memory:?cache=shared")
 	c.Assert(err, IsNil)
+
+	// Comment this to enable db logs during tests
+	db.SetLogger(log.New(ioutil.Discard, "", 0))
 	ts.db = db
 
 	ts.controller = NewController(&ts.db, regulog.NewNull(""))
