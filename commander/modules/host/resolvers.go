@@ -102,8 +102,10 @@ type ResolversConfig struct {
 
 func (c *ResolversConfig) BeforeSave() error {
 	for _, server := range []string{c.DNSServerIP1, c.DNSServerIP2, c.DNSServerIP3} {
-		if net.ParseIP(server) == nil {
-			return fmt.Errorf("%s is not a valid IP", server)
+		if len(server) > 0 {
+			if net.ParseIP(server) == nil {
+				return fmt.Errorf("%s is not a valid IP", server)
+			}
 		}
 	}
 	return nil
@@ -113,6 +115,6 @@ func (c *Controller) seedResolvers() {
 	c.db.FirstOrCreate(&ResolversConfig{
 		DNSServerIP1: "8.8.8.8",
 		DNSServerIP2: "8.8.4.4",
-		DNSServerIP3: "208.67.222.222",
+		DNSServerIP3: "",
 	})
 }

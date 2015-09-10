@@ -144,12 +144,14 @@ func (ts *InterfacesTestSuite) TestInterfaceFileGeneration(c *C) {
 		"address 192.168.168.8",
 		"netmask 255.255.255.0",
 		"gateway 192.168.168.1",
+		"dns-nameservers 8.8.8.8 8.8.4.4",
 		"",
 		"auto test2",
 		"iface test2 inet dhcp",
 	}
 
 	filebytes := bytes.NewBuffer(filecontents)
+	c.Log(string(filecontents))
 	for _, expstr := range expectedLines {
 		b := filebytes.Next(len(expstr) + 1)
 		c.Assert(string(b), Equals, expstr+"\n")

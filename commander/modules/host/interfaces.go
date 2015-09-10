@@ -268,19 +268,38 @@ func (c *Controller) interfacesConfigFileContents() ([]byte, error) {
 func (c *Controller) interfacesConfigFileSection(iface InterfaceConfig) string {
 	contents := bytes.Buffer{}
 
+	getDomain := func() string {
+		dom := Domain{}
+		c.db.First(&dom, 1)
+		return dom.Domain
+	}
+
+	getResolvers := func() string {
+		res := ResolversConfig{}
+		c.db.First(&res, 1)
+
+		resolvers := []string{}
+		for _, res := range []string{res.DNSServerIP1, res.DNSServerIP2, res.DNSServerIP3} {
+			if len(res) > 0 {
+				resolvers = append(resolvers, res)
+			}
+		}
+
+		return strings.Join(resolvers, " ")
+	}
+
 	// per the docs, err is always nil
 	contents.WriteString("auto " + iface.Name + "\n")
 	contents.WriteString("iface " + iface.Name + " inet " + iface.Mode + "\n")
 	if iface.Mode == ModeStatic {
-		dom := Domain{}
-		c.db.Find(&dom, 1)
-
 		contents.WriteString("address " + iface.Address + "\n")
 		contents.WriteString("netmask " + iface.Netmask + "\n")
 		contents.WriteString("gateway " + iface.Gateway + "\n")
-		if len(dom.Domain) > 0 {
-			contents.WriteString("dns-search " + dom.Domain + "\n")
-			// contents.WriteString("dns-nameservers " + servers + "\n")
+		if domain := getDomain(); len(domain) > 0 {
+			contents.WriteString("dns-search " + domain + "\n")
+		}
+		if resolvers := getResolvers(); len(resolvers) > 0 {
+			contents.WriteString("dns-nameservers " + resolvers + "\n")
 		}
 	}
 
