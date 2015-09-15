@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/jinzhu/gorm"
+	"github.com/zenazn/goji/web"
 
 	"rocketship/commander/modules/host"
 	"rocketship/commander/modules/radio"
@@ -37,7 +38,7 @@ func NewController(_ *gorm.DB, log regulog.Logger) *Controller {
 }
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
-func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) ServeHTTPC(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	// No handlers (yet)
 	return
 }

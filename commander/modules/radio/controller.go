@@ -37,7 +37,7 @@ func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
 }
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
-func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) ServeHTTPC(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	// No handlers (yet)
 	return
 }
