@@ -37,33 +37,62 @@ const (
 		"\"rfc3442-classless-static-routes\", \"ntp-servers\", \"dhcp6.domain-search\", " +
 		"\"dhcp6.fqdn\", \"dhcp6.name-servers\", \"dhcp6.sntp-servers\"]"
 
-	IfupBinPath   = "/sbin/ifup"
-	IfdownBinPath = "/sbin/ifdown"
+	IfupBinPath     = "/sbin/ifup"
+	IfdownBinPath   = "/sbin/ifdown"
+	IfconfigBinPath = "/sbin/ifconfig"
 )
 
 //
 // Endpoint Handlers
 //
 
-func (c *Controller) GetInterfaces(ctx web.C, w http.ResponseWriter, r *http.Request) {
-	ifaces := []InterfaceConfig{}
-	if err := c.db.Find(&ifaces).Error; err != nil {
+func (c *Controller) GetInterfaceNames(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	names := []string{}
+	if err := c.db.Model(&InterfaceConfig{}).Pluck("name", &names).Error; err != nil {
+		c.log.Warningln("Failed to fetch interfaces names from db: ", err)
 		c.jsonError(err, w)
 		return
 	}
 
-	resources := make([]InterfaceConfigResource, len(ifaces))
-	for i, r := range resources {
-		output, err := (ifaceCtrl{Name: ifaces[i].Name}).Ifconfig()
-		if err != nil {
-			continue
-		}
-		ptr := &r
-		ptr.InterfaceConfig = ifaces[i]
-		ptr.InterfaceStatus = output
+	bytes, err := json.Marshal(names)
+	if err != nil {
+		c.jsonError(err, w)
+		return
 	}
 
-	bytes, err := json.Marshal(resources)
+	_, err = w.Write(bytes)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	return
+}
+
+func (c *Controller) GetInterface(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	// Read from request
+	ifaceName, there := ctx.URLParams["id"]
+	if !there {
+		c.jsonError(fmt.Errorf("missing interface name"), w)
+		return
+	}
+
+	iface := InterfaceConfig{Name: ifaceName}
+	if err := c.db.First(&iface).Error; err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	resource := &InterfaceConfigResource{}
+	output, err := (ifaceCtrl{Name: ifaceName, Log: c.log}).Ifconfig()
+	if err != nil {
+		c.log.Warningln("Failed to get ifconfig info for ", ifaceName)
+	}
+
+	resource.InterfaceConfig = iface
+	resource.InterfaceStatus = output
+
+	bytes, err := json.MarshalIndent(resource, "", "  ")
 	if err != nil {
 		c.jsonError(err, w)
 		return
@@ -79,29 +108,68 @@ func (c *Controller) GetInterfaces(ctx web.C, w http.ResponseWriter, r *http.Req
 }
 
 func (c *Controller) EditInterface(ctx web.C, w http.ResponseWriter, r *http.Request) {
-	// Read from request
-	resource := InterfaceConfigResource{}
-	iface := resource.InterfaceConfig
+	ifaceName, there := ctx.URLParams["id"]
+	if !there {
+		c.jsonError(fmt.Errorf("missing interface name"), w)
+		return
+	}
 
-	// TODO: Ensure that the interface name is not being changed!
+	// Read from request
+	reqbody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	resource := InterfaceConfigResource{}
+	if err = json.Unmarshal(reqbody, &resource); err != nil {
+		c.jsonError(err, w)
+		return
+	}
+
+	// only the InterfaceConfig from the request is useful to us.
+	iface := resource.InterfaceConfig
+	iface.Name = ifaceName
 
 	// save to db
+	c.log.Infoln("Saving configuration for interface", iface.Name)
 	if err := c.db.Save(&iface).Error; err != nil {
 		c.jsonError(err, w)
 		return
 	}
 
 	// load the struct from db (for the response)
-	if err := c.db.Find(&iface, iface.Name).Error; err != nil {
+	if err := c.db.First(&iface).Error; err != nil {
 		c.jsonError(err, w)
 		return
 	}
 
+	applicator := func() error {
+		c.log.Infoln("Applying interface configuration to system")
+		if err := c.RewriteInterfacesFile(); err != nil {
+			return err
+		}
+		if iface.Mode == ModeDHCP {
+			if err := c.RewriteDhclientConfFile(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if _, there := ctx.Env[NoApplyEnvKey]; there {
+		c.log.Infoln("Skipping apply interface config to system (\"noapply\" present in env)")
+	} else {
+		if err := applicator(); err != nil {
+			c.log.Warningln("failed to apply interface settings to system:", err)
+		}
+	}
+
 	// get the latest ifconfig output (for the response)
-	output, err := (ifaceCtrl{Name: iface.Name}).Ifconfig()
+	output, err := (ifaceCtrl{Name: iface.Name, Log: c.log}).Ifconfig()
 	if err != nil {
-		c.jsonError(err, w)
-		return
+		output = fmt.Sprintf("Failed to get ifconfig info for %s", iface.Name)
+		c.log.Errorln(output)
 	}
 	resource.InterfaceStatus = output
 	resource.InterfaceConfig = iface
@@ -117,16 +185,6 @@ func (c *Controller) EditInterface(ctx web.C, w http.ResponseWriter, r *http.Req
 		c.jsonError(err, w)
 		return
 	}
-
-	flapInterface := func() error {
-		// rewrite files
-		c.RewriteDhclientConfFile()
-		c.RewriteInterfacesFile()
-		// twiddle interface
-		return (ifaceCtrl{Name: resource.Name}).Flap()
-	}
-
-	ctx.Env["bottomHalf"] = flapInterface
 
 	return
 }
@@ -174,6 +232,7 @@ func (c *Controller) CreateDHCPProfile(ctx web.C, w http.ResponseWriter, r *http
 		return
 	}
 
+	c.log.Infoln("Creating DHCP profile")
 	err = c.db.Create(&profile).Error
 	if err != nil {
 		c.jsonError(err, w)
@@ -719,24 +778,18 @@ func (i ifaceCtrl) Up(forceUp bool) error {
 	if forceUp {
 		args = append(args, "-f")
 	}
-	cmd := exec.Cmd{
-		Path: IfupBinPath,
-		Args: args,
-	}
+	cmd := exec.Command(IfupBinPath, args...)
 	if output, err := cmd.Output(); err != nil || cmd.ProcessState.Success() != true {
-		i.Log.Warningln("Failed to ifup", i.Name, ". Output", output)
+		i.Log.Warningln("Failed to ifup:", i.Name, ". Output:", output)
 		return fmt.Errorf("Failed to up interface %s: %s", i.Name, err)
 	}
 	return nil
 }
 
 func (i ifaceCtrl) Down() error {
-	cmd := exec.Cmd{
-		Path: IfdownBinPath,
-		Args: []string{i.Name},
-	}
+	cmd := exec.Command(IfdownBinPath, i.Name)
 	if output, err := cmd.Output(); err != nil || cmd.ProcessState.Success() != true {
-		i.Log.Warningln("Failed to ifdown", i.Name, ". Output", output)
+		i.Log.Warningln("Failed to ifdown:", i.Name, ". Output:", output)
 		return fmt.Errorf("Failed to down interface %s: %s", i.Name, err)
 	}
 	return nil
@@ -765,11 +818,8 @@ func (i ifaceCtrl) Flap() error {
 }
 
 func (i ifaceCtrl) Ifconfig() (string, error) {
-	cmd := exec.Cmd{
-		Path: "/sbin/ifconfig",
-		Args: []string{i.Name},
-	}
-	out, err := cmd.Output()
+	i.Log.Infoln("Running ifconfig for", i.Name)
+	out, err := exec.Command(IfconfigBinPath, i.Name).Output()
 	return string(out), err
 
 }

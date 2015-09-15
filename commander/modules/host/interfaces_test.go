@@ -2,12 +2,16 @@ package host
 
 import (
 	"bytes"
+	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"rocketship/regulog"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/zenazn/goji/web"
 	. "gopkg.in/check.v1"
 
 	"github.com/jinzhu/gorm"
@@ -308,4 +312,61 @@ func (ts *InterfacesTestSuite) TestDefaultEntries(c *C) {
 	// ensure it is in dhcp mode, and uses the default profile
 	c.Assert(ifaces[0].Mode, Equals, ModeDHCP)
 	c.Assert(ifaces[0].DHCPProfileID, Equals, profile.ID)
+}
+
+func (ts *InterfacesTestSuite) TestGetInterfaceNamesHandler(c *C) {
+	req, err := http.NewRequest("GET", "/dont/care", bytes.NewBufferString(""))
+	c.Assert(err, IsNil)
+
+	rec := httptest.NewRecorder()
+
+	ts.controller.GetInterfaceNames(web.C{}, rec, req)
+	c.Assert(rec.Code, Equals, http.StatusOK)
+
+	resbody, err := ioutil.ReadAll(rec.Body)
+	c.Assert(err, IsNil)
+
+	names := []string{}
+	err = json.Unmarshal(resbody, &names)
+	c.Assert(err, IsNil)
+
+	c.Log(names)
+}
+
+func (ts *InterfacesTestSuite) TestGetInterfaceHandler(c *C) {
+	req, err := http.NewRequest("GET", "/dont/care", bytes.NewBufferString(""))
+	c.Assert(err, IsNil)
+
+	rec := httptest.NewRecorder()
+
+	ts.controller.GetInterface(web.C{URLParams: map[string]string{"id": "eth0"}}, rec, req)
+	c.Assert(rec.Code, Equals, http.StatusOK)
+
+	resbody, err := ioutil.ReadAll(rec.Body)
+	c.Assert(err, IsNil)
+
+	iface := InterfaceConfigResource{}
+	err = json.Unmarshal(resbody, &iface)
+	c.Assert(err, IsNil)
+}
+
+func (ts *InterfacesTestSuite) TestGetDHCPProfilesHandler(c *C) {
+	req, err := http.NewRequest("GET", "/dont/care", bytes.NewBufferString(""))
+	c.Assert(err, IsNil)
+
+	rec := httptest.NewRecorder()
+
+	ts.controller.GetDHCPProfiles(web.C{}, rec, req)
+	c.Assert(rec.Code, Equals, http.StatusOK)
+
+	resbody, err := ioutil.ReadAll(rec.Body)
+	c.Assert(err, IsNil)
+
+	profiles := []DHCPProfileResource{}
+	err = json.Unmarshal(resbody, &profiles)
+	c.Assert(err, IsNil)
+
+	count := 0
+	ts.db.Model(&DHCPProfile{}).Count(&count)
+	c.Assert(profiles, HasLen, count)
 }

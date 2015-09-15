@@ -53,8 +53,9 @@ func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
 	c.mux.Post(EUsers, c.CreateUser)
 	c.mux.Delete(EUsersID, c.DeleteUser)
 	// Interfaces endpoints
-	c.mux.Get(EInterfaces, c.GetInterfaces)
-	c.mux.Get(EInterfacesID, c.EditInterface)
+	c.mux.Get(EInterfaces, c.GetInterfaceNames)
+	c.mux.Get(EInterfacesID, c.GetInterface)
+	c.mux.Put(EInterfacesID, c.EditInterface)
 	return &c
 }
 
