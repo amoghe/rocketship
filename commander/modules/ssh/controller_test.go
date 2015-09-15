@@ -41,7 +41,7 @@ func (ts *SshConfigTestSuite) TearDownTest(c *C) {
 	ts.db.Close()
 }
 
-func (ts *SshConfigTestSuite) TestSyslogConfFile(c *C) {
+func (ts *SshConfigTestSuite) TestSshConfFile(c *C) {
 
 	// these are lines that are populated by us in the template
 	expectedLines := []string{

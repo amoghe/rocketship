@@ -13,11 +13,15 @@ import (
 
 	"rocketship/regulog"
 
+	"github.com/amoghe/go-upstart"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 )
 
 const (
+	// Indicates that we should'nt apply db settings to the system
+	NoApplyEnvKey = "noapply"
+
 	SshConfigDirPath = "/etc/ssh"
 
 	SshConfigFileName         = "ssh_config"
@@ -84,7 +88,7 @@ func (c Controller) GetSshConfig(_ web.C, w http.ResponseWriter, r *http.Request
 	return
 }
 
-func (c Controller) PutSshConfig(_ web.C, w http.ResponseWriter, r *http.Request) {
+func (c Controller) PutSshConfig(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		c.jsonError(err, w)
@@ -103,6 +107,25 @@ func (c Controller) PutSshConfig(_ web.C, w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	applicator := func() error {
+		if c.RewriteFiles() != nil {
+			return err
+		}
+		if err := upstart.RestartJob("ssh"); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if _, there := ctx.Env[NoApplyEnvKey]; there {
+		c.log.Infoln("Skipping apply ssh config to system (\"noapply\" present in env)")
+	} else {
+		if applicator() != nil {
+			c.log.Errorln("Failed to apply ssh config:", err)
+		}
+	}
+
+	// TODO: recreate the resp body using a newly read struct from the DB.
 	w.Write(reqBody)
 }
 
