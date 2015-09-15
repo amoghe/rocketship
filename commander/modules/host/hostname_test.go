@@ -18,6 +18,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+var (
+	nullEnv = map[interface{}]interface{}{NoApplyEnvKey: ""}
+)
+
 type HostnameTestSuite struct {
 	db         gorm.DB
 	controller *Controller
@@ -101,7 +105,7 @@ func (ts *HostnameTestSuite) TestPutHostname(c *C) {
 
 	rec := httptest.NewRecorder()
 
-	ts.controller.PutHostname(web.C{}, rec, req)
+	ts.controller.PutHostname(web.C{Env: nullEnv}, rec, req)
 	c.Assert(err, IsNil)
 	c.Assert(rec.Code, Equals, http.StatusOK)
 

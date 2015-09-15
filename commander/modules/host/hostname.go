@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/amoghe/go-upstart"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 )
@@ -68,6 +69,25 @@ func (c *Controller) PutHostname(ctx web.C, w http.ResponseWriter, r *http.Reque
 		err = fmt.Errorf("Failed to persist configuration (%s)", err)
 		c.jsonError(err, w)
 		return
+	}
+
+	applicator := func() error {
+		if err := c.RewriteHostnameFile(); err != nil {
+			return err
+		}
+		if err := upstart.RestartJob("hostname"); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if _, there := ctx.Env[NoApplyEnvKey]; there {
+		c.log.Infoln("Skipping apply hostname to system (\"noapply\" present in env)")
+	} else {
+		c.log.Infoln("Applying hostname to system")
+		if err := applicator(); err != nil {
+			c.log.Warningln("failed to apply hostname to system: ", err)
+		}
 	}
 
 	w.Write(bodybytes)

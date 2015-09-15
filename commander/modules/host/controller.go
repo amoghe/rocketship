@@ -11,6 +11,9 @@ import (
 )
 
 const (
+	// Indicates that we should'nt apply db settings to the system
+	NoApplyEnvKey = "noapply"
+
 	// Prefix under which all the endpoints reside
 	URLPrefix = "/host"
 	// Endpoint at which the hostname can be configured
