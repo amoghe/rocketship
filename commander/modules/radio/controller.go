@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/amoghe/go-upstart"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 
@@ -18,6 +19,8 @@ import (
 )
 
 const (
+	NoApplyEnvKey = "noapply"
+
 	URLPrefix = "/radio"
 
 	RadioPort = 12345
@@ -101,25 +104,31 @@ func (c *Controller) GetErrorRecipients(_ web.C, w http.ResponseWriter, r *http.
 }
 
 // Add
-func (c *Controller) AddInfoRecipient(_ web.C, w http.ResponseWriter, r *http.Request) {
+func (c *Controller) AddInfoRecipient(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	c.addRecipient(w, r, InfoRecipient{})
+	c.maybeFlapRadio(ctx)
 }
-func (c *Controller) AddWarnRecipient(_ web.C, w http.ResponseWriter, r *http.Request) {
+func (c *Controller) AddWarnRecipient(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	c.addRecipient(w, r, WarnRecipient{})
+	c.maybeFlapRadio(ctx)
 }
-func (c *Controller) AddErrorRecipient(_ web.C, w http.ResponseWriter, r *http.Request) {
+func (c *Controller) AddErrorRecipient(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	c.addRecipient(w, r, ErrorRecipient{})
+	c.maybeFlapRadio(ctx)
 }
 
 // Del
 func (c *Controller) DeleteInfoRecipient(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	c.deleteRecipient(ctx, w, r, &InfoRecipient{})
+	c.maybeFlapRadio(ctx)
 }
 func (c *Controller) DeleteWarnRecipient(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	c.deleteRecipient(ctx, w, r, &WarnRecipient{})
+	c.maybeFlapRadio(ctx)
 }
 func (c *Controller) DeleteErrorRecipient(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	c.deleteRecipient(ctx, w, r, &ErrorRecipient{})
+	c.maybeFlapRadio(ctx)
 }
 
 // respond with a list of the requested type of email recipients. Type is indicated via the 'er'
@@ -239,6 +248,20 @@ func (c *Controller) jsonError(err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err.Error())))
 
+}
+
+func (c *Controller) maybeFlapRadio(ctx web.C) error {
+	if _, there := ctx.Env[NoApplyEnvKey]; there {
+		c.log.Infoln("Skipping apply radio config to system (\"noapply\" present in env)")
+		return nil
+	}
+	if err := c.RewriteFiles(); err != nil {
+		return err
+	}
+	if err := upstart.RestartJob("radio"); err != nil {
+		return err
+	}
+	return nil
 }
 
 //

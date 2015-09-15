@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/mail"
@@ -16,6 +17,10 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	. "gopkg.in/check.v1"
+)
+
+var (
+	noApplyEnv = map[interface{}]interface{}{NoApplyEnvKey: nil}
 )
 
 //
@@ -40,6 +45,9 @@ func Test(t *testing.T) {
 func (ts *RadioTestSuite) SetUpTest(c *C) {
 	db, err := gorm.Open("sqlite3", "file::memory:?cache=shared")
 	c.Assert(err, IsNil)
+
+	// Comment this for db logs during tests
+	db.SetLogger(log.New(ioutil.Discard, "", 0))
 
 	ts.db = db
 	ts.controller = NewController(&ts.db, regulog.NewNull(""))
@@ -75,7 +83,7 @@ func (ts *RadioTestSuite) TestEmailRecipientAdd(c *C) {
 	// Add recipient email via handler and verify response.
 	addRecipient := func(tableStruct interface{}, c *C) {
 		req := newJsonPostRequest("", EmailRecipient{Email: email}, c)
-		ts.controller.AddInfoRecipient(web.C{}, rec, req)
+		ts.controller.AddInfoRecipient(web.C{Env: noApplyEnv}, rec, req)
 
 		body, err := ioutil.ReadAll(rec.Body)
 		c.Assert(err, IsNil)
@@ -134,7 +142,7 @@ func (ts *RadioTestSuite) TestEmailRecipientDel(c *C) {
 		ts.controller.DeleteErrorRecipient,
 	} {
 		rec := httptest.NewRecorder()
-		f(web.C{URLParams: map[string]string{"id": "1"}}, rec, &http.Request{})
+		f(web.C{URLParams: map[string]string{"id": "1"}, Env: noApplyEnv}, rec, &http.Request{})
 
 		body, err := ioutil.ReadAll(rec.Body)
 		c.Assert(err, IsNil)
