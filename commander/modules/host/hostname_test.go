@@ -13,6 +13,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/jinzhu/gorm"
+	"github.com/zenazn/goji/web"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -78,7 +79,7 @@ func (ts *HostnameTestSuite) TestGetHostname(c *C) {
 
 	rec := httptest.NewRecorder()
 
-	ts.controller.GetHostname(rec, req)
+	ts.controller.GetHostname(web.C{}, rec, req)
 	c.Assert(err, IsNil)
 	c.Assert(rec.Code, Equals, http.StatusOK)
 
@@ -100,7 +101,7 @@ func (ts *HostnameTestSuite) TestPutHostname(c *C) {
 
 	rec := httptest.NewRecorder()
 
-	ts.controller.PutHostname(rec, req)
+	ts.controller.PutHostname(web.C{}, rec, req)
 	c.Assert(err, IsNil)
 	c.Assert(rec.Code, Equals, http.StatusOK)
 

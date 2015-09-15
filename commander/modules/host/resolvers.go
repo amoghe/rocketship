@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+
+	"github.com/zenazn/goji/web"
 )
 
 const (
@@ -19,7 +21,7 @@ const (
 // Handlers
 //
 
-func (c *Controller) SetResolvers(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) SetResolvers(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	bodybytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		c.jsonError(err, w)
@@ -51,7 +53,7 @@ func (c *Controller) SetResolvers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *Controller) GetResolvers(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetResolvers(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	rcfg := ResolversConfig{}
 	if err := c.db.First(&rcfg, 1).Error; err != nil {
 		c.jsonError(err, w)
@@ -112,6 +114,7 @@ func (c *ResolversConfig) BeforeSave() error {
 }
 
 func (c *Controller) seedResolvers() {
+	c.log.Infoln("Seeding resolvers")
 	c.db.FirstOrCreate(&ResolversConfig{
 		DNSServerIP1: "8.8.8.8",
 		DNSServerIP2: "8.8.4.4",

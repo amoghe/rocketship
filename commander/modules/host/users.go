@@ -156,7 +156,7 @@ func GetSystemUser(name string) (DefaultUser, error) {
 // Endpoint handlers
 //
 
-func (c *Controller) GetUsers(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetUsers(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	users := []User{}
 	err := c.db.Find(&users).Error
 	if err != nil {
@@ -183,7 +183,7 @@ func (c *Controller) GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *Controller) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) CreateUser(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	bodybytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		c.jsonError(err, w)

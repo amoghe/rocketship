@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/jinzhu/gorm"
+	"github.com/zenazn/goji/web"
 )
 
 var (
@@ -18,7 +19,7 @@ const (
 	MaxDomainLen = 32
 )
 
-func (c *Controller) GetDomain(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetDomain(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	domain := Domain{}
 	err := c.db.First(&domain, 1).Error
 	if err != nil {
@@ -41,7 +42,7 @@ func (c *Controller) GetDomain(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (c *Controller) PutDomain(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) PutDomain(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	domain := Domain{ID: 1}
 
 	bodybytes, err := ioutil.ReadAll(r.Body)

@@ -9,6 +9,7 @@ import (
 	"rocketship/regulog"
 
 	"github.com/jinzhu/gorm"
+	"github.com/zenazn/goji/web"
 
 	. "gopkg.in/check.v1"
 
@@ -44,7 +45,7 @@ func (ts *DomainTestSuite) TestGetDomain(c *C) {
 
 	rec := httptest.NewRecorder()
 
-	ts.controller.GetDomain(rec, req)
+	ts.controller.GetDomain(web.C{}, rec, req)
 	c.Assert(rec.Code, Equals, http.StatusOK)
 
 	resbody, err := ioutil.ReadAll(rec.Body)
@@ -63,7 +64,7 @@ func (ts *DomainTestSuite) TestPutDomain(c *C) {
 	req, err := http.NewRequest("PUT", "/dont/care", bytes.NewBufferString(jsonbody))
 	rec := httptest.NewRecorder()
 
-	ts.controller.PutDomain(rec, req)
+	ts.controller.PutDomain(web.C{}, rec, req)
 	c.Assert(rec.Code, Equals, http.StatusOK)
 
 	resbody, err := ioutil.ReadAll(rec.Body)

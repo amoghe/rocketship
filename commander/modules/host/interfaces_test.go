@@ -184,9 +184,8 @@ func (ts *InterfacesTestSuite) TestDhclientConfFileGenerationWithOverrides(c *C)
 	}).Error
 	c.Assert(err, IsNil)
 
-	err = ts.db.Save(&InterfaceConfig{
-		ID:            1,
-		Name:          "eth0",
+	err = ts.db.Create(&InterfaceConfig{
+		Name:          "eth1",
 		Mode:          ModeDHCP,
 		DHCPProfileID: 2,
 	}).Error

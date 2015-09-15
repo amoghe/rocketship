@@ -91,17 +91,8 @@ func (c *Controller) EditInterface(ctx web.C, w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// rewrite files
-	c.RewriteDhclientConfFile()
-	c.RewriteInterfacesFile()
-
-	// twiddle interface
-	if err := (ifaceCtrl{Name: resource.Name}).Flap(); err != nil {
-		// note the error
-	}
-
 	// load the struct from db (for the response)
-	if err := c.db.Find(&iface, iface.ID).Error; err != nil {
+	if err := c.db.Find(&iface, iface.Name).Error; err != nil {
 		c.jsonError(err, w)
 		return
 	}
@@ -127,10 +118,20 @@ func (c *Controller) EditInterface(ctx web.C, w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	flapInterface := func() error {
+		// rewrite files
+		c.RewriteDhclientConfFile()
+		c.RewriteInterfacesFile()
+		// twiddle interface
+		return (ifaceCtrl{Name: resource.Name}).Flap()
+	}
+
+	ctx.Env["bottomHalf"] = flapInterface
+
 	return
 }
 
-func (c *Controller) GetDHCPProfiles(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetDHCPProfiles(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	profiles := []DHCPProfile{}
 	if err := c.db.Find(&profiles).Error; err != nil {
 		c.jsonError(err, w)
@@ -158,7 +159,7 @@ func (c *Controller) GetDHCPProfiles(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (c *Controller) CreateDHCPProfile(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) CreateDHCPProfile(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	profile := DHCPProfile{}
 
 	bodybytes, err := ioutil.ReadAll(r.Body)
@@ -511,8 +512,7 @@ type DHCPProfile struct {
 }
 
 type InterfaceConfig struct {
-	ID      int64
-	Name    string
+	Name    string `gorm:"primary_key"`
 	Enabled bool
 	Mode    string
 
@@ -539,12 +539,9 @@ func (i *InterfaceConfig) BeforeSave(txn *gorm.DB) error {
 }
 
 func (i *InterfaceConfig) BeforeUpdate(txn *gorm.DB) error {
-	temp := InterfaceConfig{}
-	if txn.Find(&temp, i.ID).Error != nil {
-		return fmt.Errorf("(BeforeUpdate) Unknown interface: %s [%d]", i.Name, i.ID)
-	}
-	if i.Name != temp.Name {
-		return fmt.Errorf("Cannot update the name of the %s interface", temp.Name)
+	temp := InterfaceConfig{Name: i.Name}
+	if txn.First(&temp).Error != nil {
+		return fmt.Errorf("Unknown interface: %s", i.Name)
 	}
 	return nil
 }
@@ -579,8 +576,8 @@ func (i *InterfaceConfig) validateDHCPProfile(txn *gorm.DB) error {
 	if i.Mode == ModeDHCP {
 		dp := DHCPProfile{}
 		if err := txn.Find(&dp, i.DHCPProfileID).Error; err != nil {
-			return fmt.Errorf("Cannot save interface %s (id:%d) with DHCP profile %d",
-				i.Name, i.ID, i.DHCPProfileID)
+			return fmt.Errorf("Cannot save interface %s with DHCP profile %d",
+				i.Name, i.DHCPProfileID)
 		}
 	}
 	return nil

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jinzhu/gorm"
+	"github.com/zenazn/goji/web"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 // Endpoint handlers
 //
 
-func (c *Controller) GetHostname(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetHostname(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	host := Hostname{}
 	err := c.db.First(&host, 1).Error
 	if err != nil {
@@ -46,7 +47,7 @@ func (c *Controller) GetHostname(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (c *Controller) PutHostname(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) PutHostname(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	host := Hostname{ID: 1}
 
 	bodybytes, err := ioutil.ReadAll(r.Body)

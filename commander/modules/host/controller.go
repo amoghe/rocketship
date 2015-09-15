@@ -51,12 +51,13 @@ func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
 	c.mux.Delete(EUsersID, c.DeleteUser)
 	// Interfaces endpoints
 	c.mux.Get(EInterfaces, c.GetInterfaces)
+	c.mux.Get(EInterfacesID, c.EditInterface)
 	return &c
 }
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
-func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c.mux.ServeHTTP(w, r)
+func (c *Controller) ServeHTTP(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	c.mux.ServeHTTPC(ctx, w, r)
 }
 
 // RoutePrefix returns the prefix under which this router handles endpoints

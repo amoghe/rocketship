@@ -61,7 +61,7 @@ func (ts *UsersTestSuite) TestGetCreateEndpointHandlers(c *C) {
 		rec := httptest.NewRecorder()
 
 		// perform the request
-		ts.controller.CreateUser(rec, req)
+		ts.controller.CreateUser(web.C{}, rec, req)
 
 		// check that response is valid json resource
 		bodybytes, err := ioutil.ReadAll(rec.Body)
@@ -90,7 +90,7 @@ func (ts *UsersTestSuite) TestGetCreateEndpointHandlers(c *C) {
 		rec := httptest.NewRecorder()
 
 		// perform the request
-		ts.controller.GetUsers(rec, req)
+		ts.controller.GetUsers(web.C{}, rec, req)
 
 		// check that response is valid json resource
 		bodybytes, err := ioutil.ReadAll(rec.Body)
