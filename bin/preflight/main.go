@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	DbType = kingpin.Flag("db-type", "DB type to connect").Default("sqlite3").String()
-	DbDSN  = kingpin.Flag("db-dsn", "DB DSN to connect").Default("/tmp/commander").String()
+	DbType   = kingpin.Flag("db-type", "DB type to connect").Default("sqlite3").String()
+	DbDSN    = kingpin.Flag("db-dsn", "DB DSN to connect").Default("/tmp/commander").String()
+	seedOnly = kingpin.Flag("seed-only", "Only migrate+seed the database, do not rewrite files").Default("false").Bool()
 )
 
 func main() {
@@ -35,13 +36,18 @@ func main() {
 
 	cmdr := commander.New(&db, logger)
 
-	logger.Infoln("Migrating database")
+	logger.Infoln("<1> Migrating database")
 	cmdr.MigrateDB()
 
-	logger.Infoln("Seeding database")
+	logger.Infoln("<2> Seeding database")
 	cmdr.SeedDB()
 
-	logger.Infoln("Regenerating config files")
+	if *seedOnly == true {
+		logger.Infoln("Exiting early due to seed-only")
+		return
+	}
+
+	logger.Infoln("<3> Regenerating config files")
 	cmdr.RewriteFiles()
 
 	logger.Infoln("Preflight finished")
