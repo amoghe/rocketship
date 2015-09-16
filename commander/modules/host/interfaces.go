@@ -746,7 +746,7 @@ func (r DHCPProfileResource) ToDHCPProfileModel() (DHCPProfile, error) {
 
 type InterfaceConfigResource struct {
 	InterfaceConfig
-	InterfaceStatus string // contains 'ifconfig' output
+	InterfaceStatus string // READONLY contains 'ifconfig' output
 }
 
 //
