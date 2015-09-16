@@ -47,7 +47,7 @@ func doGetHostname() {
 
 	h := host.HostnameResource{}
 	if err := json.Unmarshal([]byte(body), &h); err != nil {
-		fmt.Println(err)
+		fmt.Println("Failed to parse JSON response from server")
 		os.Exit(1)
 	}
 
