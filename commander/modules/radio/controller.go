@@ -8,6 +8,7 @@ import (
 	"net/mail"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/amoghe/go-upstart"
 	"github.com/jinzhu/gorm"
@@ -23,6 +24,14 @@ const (
 
 	URLPrefix = "/radio"
 
+	EInfoRecipients  = URLPrefix + "/recipients/info"
+	EWarnRecipients  = URLPrefix + "/recipients/warn"
+	EErrorRecipients = URLPrefix + "/recipients/error"
+
+	EInfoRecipientsID  = EInfoRecipients + "/:id"
+	EWarnRecipientsID  = EWarnRecipients + "/:id"
+	EErrorRecipientsID = EErrorRecipients + "/:id"
+
 	RadioPort = 12345
 
 	RadioConfDir  = "/etc/radio"
@@ -30,18 +39,35 @@ const (
 )
 
 type Controller struct {
-	db  *gorm.DB
-	mux *web.Mux
-	log regulog.Logger
+	db   *gorm.DB
+	mux  *web.Mux
+	log  regulog.Logger
+	lock sync.Mutex
 }
 
 func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
-	return &Controller{db: db, mux: web.New(), log: logger}
+	ctrl := &Controller{db: db, mux: web.New(), log: logger}
+
+	ctrl.mux.Get(EInfoRecipients, ctrl.GetInfoRecipients)
+	ctrl.mux.Get(EWarnRecipients, ctrl.GetWarnRecipients)
+	ctrl.mux.Get(EErrorRecipients, ctrl.GetErrorRecipients)
+
+	ctrl.mux.Post(EInfoRecipients, ctrl.AddInfoRecipient)
+	ctrl.mux.Post(EWarnRecipients, ctrl.AddWarnRecipient)
+	ctrl.mux.Post(EErrorRecipients, ctrl.AddErrorRecipient)
+
+	ctrl.mux.Delete(EInfoRecipientsID, ctrl.DeleteInfoRecipient)
+	ctrl.mux.Delete(EWarnRecipientsID, ctrl.DeleteWarnRecipient)
+	ctrl.mux.Delete(EErrorRecipientsID, ctrl.DeleteErrorRecipient)
+
+	return ctrl
 }
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
 func (c *Controller) ServeHTTPC(ctx web.C, w http.ResponseWriter, r *http.Request) {
-	// No handlers (yet)
+	c.lock.Lock()
+	c.mux.ServeHTTPC(ctx, w, r)
+	c.lock.Unlock()
 	return
 }
 
