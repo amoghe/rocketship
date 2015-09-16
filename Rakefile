@@ -11,6 +11,8 @@ namespace :build do
 
 	ROCKETSHIP_COMPONENTS = [ 'commander', 'crashcorder', 'preflight', 'radio']
 
+	SHELL_COMMANDS = Rake::FileList.new("bin/clients/*")
+
 	build_bin_tasks = []
 	copy_bin_tasks = []
 
@@ -26,6 +28,14 @@ namespace :build do
 
 			# invoke the build in the subdir
 			sh("$(cd #{subdir}; go build)")
+		end
+	end
+
+	SHELL_COMMANDS.each do |cmd_dir|
+		taskname = "shellcmd:#{File.basename(cmd_dir)}"
+		build_bin_tasks << taskname
+		task taskname do |t|
+			sh("cd #{cmd_dir} && go build")
 		end
 	end
 
@@ -50,6 +60,9 @@ namespace :build do
 	#
 	desc "Build all binaries"
 	task :allbins => build_bin_tasks
+
+	desc "Copy binaries into rootfs in preparation for image build"
+	task :copybins => copy_bin_tasks
 
 	#
 	# Build image
@@ -92,6 +105,7 @@ end
 namespace :clean do
 
 	clean_bin_tasks = []
+	clean_copied_tasks = []
 
 	# [INTERNAL] Tasks for cleaning built binaries (in the src dir).
 	# (intentionally missing descriptions so that they are omitted in the -T output. Instead see
@@ -105,12 +119,20 @@ namespace :clean do
 		end
 	end
 
+	SHELL_COMMANDS.each do |cmd_dir|
+		taskname = "shellcmd:#{File.basename(cmd_dir)}"
+		clean_bin_tasks << taskname
+		task taskname do |t|
+			sh("cd #{cmd_dir} && go clean")
+		end
+	end
+
 	# [INTERNAL] Tasks for cleaning up copied binaries (in the rootfs dir).
 	# (Intentionally missing descriptions so that they are omitted in the -T output. Instead see
 	# the :allbins target that uses these).
 	ROCKETSHIP_COMPONENTS.each do |component|
 		taskname = "copied_#{component}"
-		clean_bin_tasks << taskname
+		clean_copied_tasks << taskname
 		task taskname do
 			srcfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'bin', component)
 			sh("rm -f #{srcfile}")
@@ -121,8 +143,11 @@ namespace :clean do
 	desc "Clean all built binaries"
 	task :allbins => clean_bin_tasks
 
+	desc "Clean binaries copied into rootfs during image builds"
+	task :copybins => clean_copied_tasks
+
 	desc 'Clean everything'
-	task :full => :allbins do
+	task :full => [:allbins, :copiedbins] do
 		# bins (built, copied) will be cleaned by dependent task.
 		# Clean up image files, disk files
 		sh("rm -f build/rocketship.img")
