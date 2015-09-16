@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"sync"
 	"text/template"
 	"time"
 
@@ -39,9 +40,10 @@ const (
 )
 
 type Controller struct {
-	db  *gorm.DB
-	mux *web.Mux
-	log regulog.Logger
+	db   *gorm.DB
+	mux  *web.Mux
+	log  regulog.Logger
+	lock sync.Mutex
 }
 
 func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
@@ -59,7 +61,9 @@ func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
 func (c *Controller) ServeHTTPC(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	c.lock.Lock()
 	c.mux.ServeHTTP(w, r)
+	c.lock.Unlock()
 }
 
 // RoutePrefix returns the prefix under which this router handles endpoints
@@ -71,7 +75,7 @@ func (c *Controller) RoutePrefix() string {
 // Handlers
 //
 
-func (c Controller) GetSshConfig(_ web.C, w http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetSshConfig(_ web.C, w http.ResponseWriter, r *http.Request) {
 	cfg := SshConfig{}
 	err := c.db.First(&cfg).Error
 	if err != nil {
@@ -88,7 +92,7 @@ func (c Controller) GetSshConfig(_ web.C, w http.ResponseWriter, r *http.Request
 	return
 }
 
-func (c Controller) PutSshConfig(ctx web.C, w http.ResponseWriter, r *http.Request) {
+func (c *Controller) PutSshConfig(ctx web.C, w http.ResponseWriter, r *http.Request) {
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		c.jsonError(err, w)
