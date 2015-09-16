@@ -298,7 +298,9 @@ func (c *Controller) RewriteFiles() error {
 	c.log.Infoln("Rewriting radio configuration file")
 	// ensure radio conf dir
 	if _, err := os.Stat(RadioConfDir); os.IsNotExist(err) {
-		os.Mkdir(RadioConfDir, 0750)
+		if err := os.Mkdir(RadioConfDir, 0750); err != nil {
+			return fmt.Errorf("Failed to ensure radio config dir: %s", err)
+		}
 	}
 
 	// write file
