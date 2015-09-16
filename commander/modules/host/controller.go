@@ -3,6 +3,7 @@ package host
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"rocketship/regulog"
 
@@ -29,9 +30,10 @@ const (
 )
 
 type Controller struct {
-	db  *gorm.DB
-	mux *web.Mux
-	log regulog.Logger
+	db   *gorm.DB
+	mux  *web.Mux
+	log  regulog.Logger
+	lock sync.Mutex
 }
 
 func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
@@ -61,7 +63,9 @@ func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
 
 // ServeHTTP satisfies the http.Handler interface (net/http as well as goji)
 func (c *Controller) ServeHTTPC(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	c.lock.Lock()
 	c.mux.ServeHTTPC(ctx, w, r)
+	c.lock.Unlock()
 }
 
 // RoutePrefix returns the prefix under which this router handles endpoints
