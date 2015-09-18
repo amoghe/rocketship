@@ -298,7 +298,7 @@ func (c *Controller) RewriteFiles() error {
 	c.log.Infoln("Rewriting radio configuration file")
 	// ensure radio conf dir
 	if _, err := os.Stat(RadioConfDir); os.IsNotExist(err) {
-		if err := os.Mkdir(RadioConfDir, 0750); err != nil {
+		if err := os.Mkdir(RadioConfDir, 0755); err != nil {
 			return fmt.Errorf("Failed to ensure radio config dir: %s", err)
 		}
 	}
@@ -309,7 +309,7 @@ func (c *Controller) RewriteFiles() error {
 		return fmt.Errorf("Failed to generate config file contents: %s", err)
 	}
 
-	err = ioutil.WriteFile(RadioConfFile, contents, 0644)
+	err = ioutil.WriteFile(RadioConfFile, contents, 0600) // because file contains credentials
 	if err != nil {
 		return fmt.Errorf("Failed to write file: %s", err)
 	}

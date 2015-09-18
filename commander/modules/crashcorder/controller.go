@@ -53,7 +53,7 @@ func (c *Controller) RewriteFiles() error {
 
 	// ensure crashcorder dir
 	if _, err := os.Stat(CrashcorderConfDir); os.IsNotExist(err) {
-		err = os.Mkdir(CrashcorderConfDir, 0750)
+		err = os.Mkdir(CrashcorderConfDir, 0755)
 		if err != nil {
 			return err
 		}
