@@ -214,22 +214,30 @@ class DiskBuilder < BaseBuilder
 						label = part.label
 						size  = part.size
 
-						k_cmdline_opts = ['rw',
-							debug ? '--debug' : '',
-							'console=ttyS0',
-							'console=tty0'
-						].join(' ') # TODO: quiet splash
+						k_cmdline_opts_normal = [ 'rw', 'quiet', 'splash' ].join(' ')
+						k_cmdline_opts_debug  = [ 'rw', 'debug', 'console=tty0' ].join(' ')
 
+						# The "Normal" entry
 						f.puts ('# 0')
 						f.puts("menuentry \"ROCKETSHIP_#{label}\" {") # TODO (ver) name?
 						f.puts('  insmod ext2') # also does ext{2,3,4}
 						#f.puts('  insmod gzio')
 						#f.puts('  insmod part_msdos')
 						f.puts("  search  --label --set=root --no-floppy #{label}")
-						f.puts("  linux   /vmlinuz root=LABEL=#{label} #{k_cmdline_opts}")
+						f.puts("  linux   /vmlinuz root=LABEL=#{label} #{k_cmdline_opts_normal}")
 						f.puts("  initrd  /initrd.img")
 						f.puts('}')
 						f.puts('')
+
+						f.puts ('# 1')
+						f.puts("menuentry \"ROCKETSHIP_#{label}_DEBUG\" {") # TODO (ver) name?
+						f.puts('  insmod ext2') # also does ext{2,3,4}
+						#f.puts('  insmod gzio')
+						#f.puts('  insmod part_msdos')
+						f.puts("  search  --label --set=root --no-floppy #{label}")
+						f.puts("  linux   /vmlinuz root=LABEL=#{label} #{k_cmdline_opts_debug}")
+						f.puts("  initrd  /initrd.img")
+						f.puts('}')
 					end
 
 					f.sync; f.fsync # flush from ruby buffers, then os buffers
