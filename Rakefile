@@ -9,9 +9,9 @@ require_relative 'build/utils/image_builder'
 
 namespace :build do
 
-	ROCKETSHIP_COMPONENTS = [ 'commander', 'crashcorder', 'preflight', 'radio']
+	ROCKETSHIP_COMPONENTS = [ 'commander', 'crashcorder', 'preflight', 'radio', 'shell']
 
-	SHELL_COMMANDS = Rake::FileList.new("bin/clients/*")
+	SHELL_COMMANDS = Rake::FileList.new("bin/shellcommands/*")
 
 	build_bin_tasks = []
 	copy_bin_tasks = []
@@ -53,12 +53,29 @@ namespace :build do
 		end
 	end
 
+	SHELL_COMMANDS.each do |cmd_dir|
+		component = File.basename(cmd_dir)
+		taskname = "copy_shellcmd:#{component}"
+		copy_bin_tasks << taskname
+		task taskname => "shellcmd:#{component}" do |t|
+
+			srcfile = File.join(File.dirname(__FILE__), 'bin', 'shellcommands', component, component)
+			dstfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'opt', 'shellcommands', component)
+
+			sh("mkdir -p #{File.dirname(dstfile)}")
+			sh("cp #{srcfile} #{dstfile}")
+		end
+	end
+
 	#
 	# Build ALL binaries (via dependencies)
 	#
 	desc "Build all binaries"
 	task :allbins => build_bin_tasks
 
+	#
+	# Copy all binaries into the rootfs
+	#
 	desc "Copy binaries into rootfs in preparation for image build"
 	task :copybins => copy_bin_tasks
 
@@ -67,7 +84,7 @@ namespace :build do
 	# (depends on the task that copies the binaries)
 	#
 	desc 'Build the system image (params are bool,bool,string)'
-	task :image, [:debug, :upgrade, :rootfs_tarball_path,] => copy_bin_tasks do |t, args|
+	task :image, [:debug, :upgrade, :rootfs_tarball_path,] => :copybins do |t, args|
 
 		args.with_defaults(:debug               => false)
 		args.with_defaults(:upgrade             => false)
@@ -96,7 +113,6 @@ namespace :build do
 		DiskBuilder.new(args.image_path, (args.debug and args.debug == 'true')).build
 	end
 
-
 end
 
 # Clean tasks
@@ -112,8 +128,8 @@ namespace :clean do
 		taskname = component
 		clean_bin_tasks << taskname
 		task taskname do |t|
-			srcfile = File.join(File.dirname(__FILE__), 'bin', component, component)
-			sh("rm -f #{srcfile}")
+			dir = File.join(File.dirname(__FILE__), 'bin', component)
+			sh("cd #{dir} && go clean")
 		end
 	end
 
@@ -137,12 +153,22 @@ namespace :clean do
 		end
 	end
 
+	SHELL_COMMANDS.each do |cmd_dir|
+		cmd = File.basename(cmd_dir)
+		taskname = "copied_shellcmd:#{cmd}"
+		clean_copied_tasks << taskname
+		task taskname do |t|
+			srcfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'opt', 'shellcommands', cmd)
+			sh("rm -f #{srcfile}")
+		end
+	end
+
 	# User facing task that cleans up all the binaries
 	desc "Clean all built binaries"
 	task :allbins => clean_bin_tasks
 
 	desc "Clean binaries copied into rootfs during image builds"
-	task :copybins => clean_copied_tasks
+	task :copiedbins => clean_copied_tasks
 
 	desc 'Clean everything'
 	task :full => [:allbins, :copiedbins] do
