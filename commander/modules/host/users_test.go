@@ -61,7 +61,7 @@ func (ts *UsersTestSuite) TestGetCreateEndpointHandlers(c *C) {
 		rec := httptest.NewRecorder()
 
 		// perform the request
-		ts.controller.CreateUser(web.C{}, rec, req)
+		ts.controller.CreateUser(web.C{Env: nullEnv}, rec, req)
 
 		// check that response is valid json resource
 		bodybytes, err := ioutil.ReadAll(rec.Body)
@@ -267,4 +267,12 @@ func (ts *UsersTestSuite) TestShadowFileContents(c *C) {
 	// trailing \n causes additional token
 	// seed user in db causes one additional token
 	c.Assert(tokens, HasLen, len(users)+len(defaultUsers)+1+1)
+
+	for _, line := range tokens {
+		if strings.HasPrefix(line, "test1") || strings.HasPrefix(line, "test2") {
+			// ensure that the lastUpdateDays is non zero
+			lineTokens := strings.Split(line, ShadowFileSeparator)
+			c.Assert(lineTokens[2], Not(Equals), "0")
+		}
+	}
 }

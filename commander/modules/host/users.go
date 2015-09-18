@@ -204,6 +204,26 @@ func (c *Controller) CreateUser(ctx web.C, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	applicator := func() error {
+		if err := c.RewriteShadowFile(); err != nil {
+			c.log.Errorf("Failed to regenerate shadow file: %s", err.Error())
+			return err
+		}
+		if err := c.RewritePasswdFile(); err != nil {
+			c.log.Errorf("Failed to regenerate passwd file: %s", err.Error())
+			return err
+		}
+		return nil
+	}
+
+	if _, there := ctx.Env[NoApplyEnvKey]; there {
+		c.log.Infoln("Skipping apply interface config to system (\"noapply\" present in env)")
+	} else {
+		if err := applicator(); err != nil {
+			c.log.Warningln("failed to apply interface settings to system:", err)
+		}
+	}
+
 	ret := &UserResource{}
 	ret.FromUserModel(user)
 
@@ -477,11 +497,11 @@ func (u User) PasswdFileEntry() string {
 }
 
 func (u User) ShadowFileEntry() string {
-	lastUpdateDays := u.UpdatedAt.Unix() / int64(time.Hour*24)
+	lastUpdateDays := (u.UpdatedAt.Unix()) / (60 * 60 * 24) // seconds/(secPerMin * minPerHour * hourPerDay) = days
 	return strings.Join([]string{
 		u.Name,
 		u.HashedPassword,
-		fmt.Sprintf("%d", lastUpdateDays),
+		fmt.Sprintf("%d", int(lastUpdateDays)),
 		"0",     // TODO: ???
 		"99999", // TODO: ()
 		"7",     // TODO: (warn)
