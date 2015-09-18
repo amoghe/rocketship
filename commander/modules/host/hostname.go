@@ -75,7 +75,10 @@ func (c *Controller) PutHostname(ctx web.C, w http.ResponseWriter, r *http.Reque
 		if err := c.RewriteHostnameFile(); err != nil {
 			return err
 		}
-		if err := upstart.RestartJob("hostname"); err != nil {
+		if err := c.RewriteEtcHostsFile(); err != nil {
+			return err
+		}
+		if err := upstart.StartJob("hostname"); err != nil {
 			return err
 		}
 		return nil
