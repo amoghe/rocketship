@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	DefaultCommandsDir     = "/opt/shell/commands"
-	DefaultHistoryFilePath = "/tmp/.shellhistory"
+	DefaultCommandsDir     = "/opt/shellcommands"
+	DefaultHistoryFilePath = "/tmp/.shellhistory" // TODO: In the homedir
 )
 
 type Shell struct {
