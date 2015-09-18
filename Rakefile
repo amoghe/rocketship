@@ -24,7 +24,7 @@ namespace :build do
 		taskname = "bin:#{component}"
 		build_bin_tasks << taskname
 		task taskname do |t|
-			subdir = File.join(File.dirname(__FILE__), 'bin', component)
+			subdir = File.join('bin', component)
 			sh("cd #{subdir}; go get && go build")
 		end
 	end
