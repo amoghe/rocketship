@@ -21,13 +21,11 @@ namespace :build do
 	# in the -T output). Instead, see the :allbins target which builds these.
 	#
 	ROCKETSHIP_COMPONENTS.each_with_index do |component, idx|
-		taskname = component
+		taskname = "bin:#{component}"
 		build_bin_tasks << taskname
 		task taskname do |t|
 			subdir = File.join(File.dirname(__FILE__), 'bin', component)
-
-			# invoke the build in the subdir
-			sh("$(cd #{subdir}; go build)")
+			sh("cd #{subdir}; go get && go build")
 		end
 	end
 
@@ -35,7 +33,7 @@ namespace :build do
 		taskname = "shellcmd:#{File.basename(cmd_dir)}"
 		build_bin_tasks << taskname
 		task taskname do |t|
-			sh("cd #{cmd_dir} && go build")
+			sh("cd #{cmd_dir} && go get && go build")
 		end
 	end
 
@@ -44,9 +42,9 @@ namespace :build do
 	# (intentionally not given descriptions so that they are suppressed in the -T output)
 	#
 	ROCKETSHIP_COMPONENTS.each_with_index do |component, idx|
-		taskname = "copy_#{component}"
+		taskname = "copy:#{component}"
 		copy_bin_tasks << taskname
-		task taskname => component do |t|
+		task taskname => "bin:#{component}" do |t|
 			srcfile = File.join(File.dirname(__FILE__), 'bin', component, component)
 			dstfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'bin', component)
 
