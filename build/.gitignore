@@ -1,2 +1,4 @@
-rocketship.img
-rocketship.vmdk
+*.tgz
+*.tar.gz
+*.img
+*.vmdk
