@@ -16,11 +16,9 @@ class ImageBuilder < BaseBuilder
 		'dbus'           ,
 		'iputils-ping'   , # ping
 		'isc-dhcp-client', # dhcp
-		#'libsqlite3-dev' , # activerecord
 		'logrotate'      ,
 		'net-tools'      , # ifconfig
 		'rsyslog'        ,
-		#'ruby1.9.1'      , # ruby 1.9.3
 		'openssh-server' ,
 	]
 
