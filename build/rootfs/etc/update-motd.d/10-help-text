@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "For help/troubleshooting, contact support at support@rocketship.com"
+echo ""
