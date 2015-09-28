@@ -28,13 +28,15 @@ class ImageBuilder < BaseBuilder
 		'lsof',
 	]
 
+	UBUNTU_APT_ARCHIVE_URL = "http://archive.ubuntu.com/ubuntu"
+
 	CWD = File.dirname(__FILE__)
 	BUILD_DIR_PATH = File.expand_path(File.join(CWD, '..'))
+	CACHE_DIR_PATH = File.expand_path(File.join(BUILD_DIR_PATH, "cache"))
+	ROCKETSHIP_ROOTFS_DIR_PATH = File.join(BUILD_DIR_PATH, 'rootfs')
 
 	CACHED_ROOTFS_TGZ_NAME = "ubuntu_#{UBUNTU_RELEASE}.tar.gz"
-	CACHED_ROOTFS_TGZ_PATH = File.join(BUILD_DIR_PATH, 'cache', CACHED_ROOTFS_TGZ_NAME)
-
-	ROCKETSHIP_ROOTFS_DIR_PATH = File.join(BUILD_DIR_PATH, 'rootfs')
+	CACHED_ROOTFS_TGZ_PATH = File.join(CACHE_DIR_PATH, CACHED_ROOTFS_TGZ_NAME)
 
 	ROCKETSHIP_IMAGE_FILE_NAME = 'rocketship.img'
 	ROCKETSHIP_IMAGE_FILE_PATH = File.join(BUILD_DIR_PATH, ROCKETSHIP_IMAGE_FILE_NAME)
@@ -58,8 +60,9 @@ class ImageBuilder < BaseBuilder
 		self.ensure_root_privilege
 
 		banner('Build options')
-		info("Install additional packages	: #{debug}")
-		info("Dist upgrade the rootfs		: #{upgrade}")
+		info("Using rootfs tarball at\t: #{File.expand_path(@rootfs)}")
+		info("Install additional pkgs\t: #{debug}")
+		info("Dist upgrade the rootfs\t: #{upgrade}")
 		sleep(1) # Time to register
 
 		self.on_mounted_tmpfs do |tempdir|
