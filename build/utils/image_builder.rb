@@ -20,9 +20,10 @@ class ImageBuilder < BaseBuilder
 		'net-tools'      , # ifconfig
 		'rsyslog'        ,
 		'openssh-server' ,
+		#'graphite-carbon',
 	]
 
-	DEBUGGING_PKGS = [
+	DEV_BUILD_PKGS = [
 		'emacs24-nox',
 		'sudo',
 		'lsof',
@@ -42,15 +43,13 @@ class ImageBuilder < BaseBuilder
 	ROCKETSHIP_IMAGE_FILE_PATH = File.join(BUILD_DIR_PATH, ROCKETSHIP_IMAGE_FILE_NAME)
 
 	attr_reader :rootfs
-	attr_reader :debug
+	attr_reader :dev_build
 	attr_reader :upgrade
 
 	def initialize(rootfs_tarball_path, opts={})
-		raise ArgumentError, 'ENOENT' unless File.exists?(rootfs_tarball_path)
-		@rootfs = rootfs_tarball_path
-
-		@debug   = opts[:debug]
-		@upgrade = opts[:upgrade]
+		@rootfs    = File.exists?(rootfs_tarball_path) ? rootfs_tarball_path : nil
+		@dev_build = !!opts[:dev_build]
+		@upgrade   = !!opts[:upgrade]
 	end
 
 	##
@@ -60,18 +59,27 @@ class ImageBuilder < BaseBuilder
 		self.ensure_root_privilege
 
 		banner('Build options')
-		info("Using rootfs tarball at\t: #{File.expand_path(@rootfs)}")
-		info("Install additional pkgs\t: #{debug}")
-		info("Dist upgrade the rootfs\t: #{upgrade}")
-		sleep(1) # Time to register
+		if rootfs == nil
+			info("Build debootstrap rootfs\t: true")
+		else
+			info("Using rootfs tarball at\t: #{File.expand_path(@rootfs)}")
+		end
+		info("Install additional packages\t: #{dev_build}")
+		info("Upgrade the distribution\t: #{upgrade}")
+		sleep(1) # Let it sink in
 
 		self.on_mounted_tmpfs do |tempdir|
 
 			begin
-				banner("Unpacking rootfs (from #{rootfs})")
-				self.extract_rootfs(tempdir)
+				if rootfs == nil
+					banner("Creating debootstrap rootfs")
+					create_debootstrap_rootfs(tempdir)
+				else
+					banner("Unpacking rootfs")
+					self.extract_rootfs(tempdir)
+				end
 
-				banner('Update rootfs')
+				banner('Updating rootfs')
 				self.install_additional_packages(tempdir)
 
 				banner('Customize image (with rocketship components)')
@@ -90,6 +98,26 @@ class ImageBuilder < BaseBuilder
 		end # on_mounted_tmpfs
 
 		nil
+	end
+
+	def create_debootstrap_rootfs(tempdir)
+		cached_pkgs_tarball = File.join(BUILD_DIR_PATH, "cache", "debootstrap_pkgs.tgz")
+		if File.exists?(cached_pkgs_tarball)
+			cached_pkgs_opt = "--unpack-tarball=#{cached_pkgs_tarball}"
+			info("Cached debootstrap packages found in tarball at: #{cached_pkgs_tarball}")
+		else
+			cached_pkgs_opt = ""
+			info("No cached debootstrap packages found.")
+		end
+
+		execute!(["debootstrap",
+			  "--variant minbase",
+			  cached_pkgs_opt,
+			  "--include #{ESSENTIAL_ADDON_PKGS.join(",")}",
+			  "trusty",
+			  tempdir,
+			  UBUNTU_APT_ARCHIVE_URL,
+		].join(" "))
 	end
 
 	##
@@ -127,8 +155,10 @@ class ImageBuilder < BaseBuilder
 			'--no-install-recommends',
 		].join(' ')
 
-		chroot_cmds = [
+		trusty_update_repo = "deb http://us.archive.ubuntu.com/ubuntu/ trusty-updates main restricted"
+		trusty_universe_repo = "deb http://us.archive.ubuntu.com/ubuntu/ trusty universe"
 
+		chroot_cmds = [
 			"mkdir -p #{DiskBuilder::CONFIG_PARTITION_MOUNT}",
 
 			# put the version into the image (ctime is build time)
@@ -138,8 +168,12 @@ class ImageBuilder < BaseBuilder
 			'echo nameserver 8.8.8.8 > /etc/resolv.conf',
 
 			# ensure no services are started in the chroot
-			'dpkg-divert --local --rename --add /sbin/initctl',
-			'ln -s /bin/true /sbin/initctl',
+			'echo -e \'#!/bin/bash\nexit 101\' > /usr/sbin/policy-rc.d',
+			'chmod a+x /usr/sbin/policy-rc.d',
+
+			# Add more repos
+			"echo #{trusty_update_repo} >> /etc/apt/sources.list",
+			"echo #{trusty_universe_repo} >> /etc/apt/sources.list",
 
 			# Update the apt cache
 			'apt-get update',
@@ -159,15 +193,14 @@ class ImageBuilder < BaseBuilder
 			# Download essential packages
 			"apt-get #{apt_opts} install #{ESSENTIAL_ADDON_PKGS.join(' ')}",
 
-			# Download additional debugging packages
-			debug ? "apt-get #{apt_opts} install #{DEBUGGING_PKGS.join(' ')}" : '',
+			# Download additional developer packages
+			dev_build ? "apt-get #{apt_opts} install #{DEV_BUILD_PKGS.join(' ')}" : '',
 
 			# Clean up the apt cache, reduces the img size
 			'apt-get clean',
 
-			# Undo the hack
-			'rm /sbin/initctl',
-			'dpkg-divert --local --rename --remove /sbin/initctl',
+			# Undo the hacks - in reverse order
+			'rm -f /usr/sbin/policy-rc.d',
 		].reject(&:empty?)
 
 		chroot_cmds.each_with_index do |cmd, num|
@@ -215,4 +248,33 @@ class ImageBuilder < BaseBuilder
 		nil
 	end
 
+	##
+	# Create a debootstrap compatible tarball of deb packages.
+	#
+	def create_debootstrap_packages_tarball()
+		cached_pkgs_tarball = File.join(BUILD_DIR_PATH, "cache", "debootstrap_pkgs.tgz")
+
+		banner("Removing old cached packages")
+		execute!("rm -f #{cached_pkgs_tarball}")
+
+		self.on_mounted_tmpfs do |tempdir|
+                        # create a work dir in the tempdir, because debootstrap wants to delete its work dir when
+                        # it finishes, but the tempdir is owned by root.
+
+                        workdir = File.join(tempdir, "work")
+                        execute!("mkdir -p #{workdir}")
+
+			banner("Invoking debootstrap to create new cached packages tarball")
+			execute!(["debootstrap",
+				"--variant minbase",
+				"--include #{ESSENTIAL_ADDON_PKGS.join(",")}",
+				"--make-tarball #{cached_pkgs_tarball}",
+				"trusty",
+				workdir,
+				UBUNTU_APT_ARCHIVE_URL,
+			].join(" "))
+		end
+
+		banner("debootstrap packages cached at:" + cached_pkgs_tarball)
+	end
 end

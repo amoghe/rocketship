@@ -80,6 +80,14 @@ namespace :build do
 	task :copybins => copy_bin_tasks
 
 	#
+	# Build a tarball of cached deb packages usable by debootstrap (created by debootstrap)
+	#
+	desc 'Build debootstrap cache'
+	task :debootstrap_cache do |t|
+		ImageBuilder.new("").create_debootstrap_packages_tarball()
+	end
+
+	#
 	# Build image
 	# (depends on the task that copies the binaries)
 	#
@@ -88,12 +96,7 @@ namespace :build do
 
 		args.with_defaults(:debug               => false)
 		args.with_defaults(:upgrade             => false)
-		args.with_defaults(:rootfs_tarball_path => ImageBuilder::CACHED_ROOTFS_TGZ_PATH)
-
-		# TODO: provide instructions on how to get a rootfs
-		unless File.exists?(args.rootfs_tarball_path)
-			raise ArgumentError, "No usable rootfs at #{args.rootfs_tarball_path}. Aborting"
-		end
+		args.with_defaults(:rootfs_tarball_path => nil)
 
 		ImageBuilder.new(args.rootfs_tarball_path,
 					:debug   => (args.debug   and args.debug   == 'true'),
