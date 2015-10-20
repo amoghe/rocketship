@@ -25,7 +25,14 @@ func New(db *gorm.DB, log regulog.Logger) *Commander {
 		log:         log,
 	}
 
+	routes := map[string]modules.Controller{}
 	for _, ctrl := range c.controllers {
+		if c, there := routes[ctrl.RoutePrefix()]; there {
+			log.Warningf("Route %s is already serviced by %T. Skipping...", ctrl.RoutePrefix(), c)
+			continue
+		} else {
+			routes[ctrl.RoutePrefix()] = ctrl
+		}
 		c.mux.Handle(ctrl.RoutePrefix()+"/*", ctrl)
 	}
 
