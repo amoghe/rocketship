@@ -2,12 +2,13 @@ package modules
 
 import (
 	"net/http"
+
+	"rocketship/commander/modules/bootbanks"
 	"rocketship/commander/modules/crashcorder"
 	"rocketship/commander/modules/host"
 	"rocketship/commander/modules/radio"
 	"rocketship/commander/modules/ssh"
 	"rocketship/commander/modules/syslog"
-
 	"rocketship/regulog"
 
 	"github.com/jinzhu/gorm"
@@ -29,5 +30,6 @@ func LoadAll(db *gorm.DB, log regulog.Logger) []Controller {
 		radio.NewController(db, log),
 		ssh.NewController(db, log),
 		syslog.NewController(db, log),
+		bootbank.NewController(db, log),
 	}
 }
