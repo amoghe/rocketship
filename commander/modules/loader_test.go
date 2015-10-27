@@ -42,5 +42,5 @@ func (ts *ModulesTestSuite) TearDownTest(c *C) {
 }
 
 func (ts *ModulesTestSuite) TestLoadAll(c *C) {
-	c.Assert(LoadAll(&ts.db, ts.log), HasLen, 5)
+	c.Assert(LoadAll(&ts.db, ts.log), Not(HasLen), 0)
 }
