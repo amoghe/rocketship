@@ -1,7 +1,8 @@
-# Build tasks for building the system
+# Rake tasks for building the various parts of the system
 #
 
- # Ensure all our ruby code in the rake files (and friends) runs in a deterministic environment providede by Bundler.
+# Ensure all our ruby code in the rake files (and friends) run in
+# a deterministic environment providede by Bundler.
 require 'bundler/setup'
 
 require_relative 'build/utils/disk_builder'
@@ -14,7 +15,7 @@ namespace :build do
 	SHELL_COMMANDS = Rake::FileList.new("bin/shellcommands/*")
 
 	build_bin_tasks = []
-	copy_bin_tasks = []
+	copy_bin_tasks  = []
 
 	#
 	# Tasks for building binaries (intentionally not given descriptions, so that they are suppressed
@@ -84,7 +85,7 @@ namespace :build do
 	#
 	desc 'Build debootstrap cache'
 	task :debootstrap_cache do |t|
-		ImageBuilder.new("").create_debootstrap_packages_tarball()
+		ImageBuilder.new().create_debootstrap_packages_tarball()
 	end
 
 	#
