@@ -12,7 +12,8 @@ class ImageBuilder < BaseBuilder
 	UBUNTU_RELEASE	= '14_04_03'
 	IMAGE_VERSION 	= '0.3.0'
 
-	ESSENTIAL_ADDON_PKGS = [
+	# These packages go into the barebones linux rootfs
+	ESSENTIAL_PKGS = [
 		'dbus'           ,
 		'iputils-ping'   , # ping
 		'isc-dhcp-client', # dhcp
@@ -20,14 +21,27 @@ class ImageBuilder < BaseBuilder
 		'net-tools'      , # ifconfig
 		'rsyslog'        ,
 		'openssh-server' ,
-		#'graphite-carbon',
+		'wget'           ,
 	]
 
+	# These are packages that are installed when transforming a basic rootfs into a rocketship rootfs.
+	ADDITIONAL_PACKAGES = [
+		'ca-certificates',
+		'collectd-core'  ,
+	]
+
+	# These are packages installed when we detect a developer build.
 	DEV_BUILD_PKGS = [
 		'emacs24-nox',
 		'sudo',
 		'lsof',
 	]
+
+	COMMON_APT_OPTS = [
+		'--yes',
+		'--no-install-recommends',
+	].join(' ')
+
 
 	UBUNTU_APT_ARCHIVE_URL = "http://archive.ubuntu.com/ubuntu"
 
@@ -36,8 +50,11 @@ class ImageBuilder < BaseBuilder
 	CACHE_DIR_PATH = File.expand_path(File.join(BUILD_DIR_PATH, "cache"))
 	ROCKETSHIP_ROOTFS_DIR_PATH = File.join(BUILD_DIR_PATH, 'rootfs')
 
-	CACHED_ROOTFS_TGZ_NAME = "ubuntu_#{UBUNTU_RELEASE}.tar.gz"
-	CACHED_ROOTFS_TGZ_PATH = File.join(CACHE_DIR_PATH, CACHED_ROOTFS_TGZ_NAME)
+	CACHED_DEBOOTSTRAP_PKGS_NAME = "debootstrap_pkgs.tgz"
+	CACHED_DEBOOTSTRAP_PKGS_PATH = File.join(CACHE_DIR_PATH, CACHED_DEBOOTSTRAP_PKGS_NAME)
+
+	UBUNTU_ROOTFS_TGZ_NAME = "ubuntu_#{UBUNTU_RELEASE}.tar.gz"
+	UBUNTU_ROOTFS_TGZ_PATH = File.join(CACHE_DIR_PATH, UBUNTU_ROOTFS_TGZ_NAME)
 
 	ROCKETSHIP_IMAGE_FILE_NAME = 'rocketship.img'
 	ROCKETSHIP_IMAGE_FILE_PATH = File.join(BUILD_DIR_PATH, ROCKETSHIP_IMAGE_FILE_NAME)
@@ -46,8 +63,8 @@ class ImageBuilder < BaseBuilder
 	attr_reader :dev_build
 	attr_reader :upgrade
 
-	def initialize(rootfs_tarball_path, opts={})
-		@rootfs    = File.exists?(rootfs_tarball_path) ? rootfs_tarball_path : nil
+	def initialize(rootfs_tgz_path, opts={})
+		@rootfs    = (rootfs_tgz_path && File.exists?(rootfs_tgz_path)) ? rootfs_tgz_path : nil
 		@dev_build = !!opts[:dev_build]
 		@upgrade   = !!opts[:upgrade]
 	end
@@ -64,6 +81,7 @@ class ImageBuilder < BaseBuilder
 		else
 			info("Using rootfs tarball at\t: #{File.expand_path(@rootfs)}")
 		end
+
 		info("Install additional packages\t: #{dev_build}")
 		info("Upgrade the distribution\t: #{upgrade}")
 		sleep(1) # Let it sink in
@@ -75,7 +93,7 @@ class ImageBuilder < BaseBuilder
 					banner("Creating debootstrap rootfs")
 					create_debootstrap_rootfs(tempdir)
 				else
-					banner("Unpacking rootfs")
+					banner("Unpacking specified rootfs")
 					self.extract_rootfs(tempdir)
 				end
 
@@ -101,10 +119,9 @@ class ImageBuilder < BaseBuilder
 	end
 
 	def create_debootstrap_rootfs(tempdir)
-		cached_pkgs_tarball = File.join(BUILD_DIR_PATH, "cache", "debootstrap_pkgs.tgz")
-		if File.exists?(cached_pkgs_tarball)
-			cached_pkgs_opt = "--unpack-tarball=#{cached_pkgs_tarball}"
-			info("Cached debootstrap packages found in tarball at: #{cached_pkgs_tarball}")
+		if File.exists?(CACHED_DEBOOTSTRAP_PKGS_PATH)
+			cached_pkgs_opt = "--unpack-tarball=#{CACHED_DEBOOTSTRAP_PKGS_PATH}"
+			info("Cached debootstrap packages found in tarball at: #{CACHED_DEBOOTSTRAP_PKGS_PATH}")
 		else
 			cached_pkgs_opt = ""
 			info("No cached debootstrap packages found.")
@@ -113,7 +130,7 @@ class ImageBuilder < BaseBuilder
 		execute!(["debootstrap",
 			  "--variant minbase",
 			  cached_pkgs_opt,
-			  "--include #{ESSENTIAL_ADDON_PKGS.join(",")}",
+			  "--include #{ESSENTIAL_PKGS.join(",")}",
 			  "trusty",
 			  tempdir,
 			  UBUNTU_APT_ARCHIVE_URL,
@@ -150,11 +167,6 @@ class ImageBuilder < BaseBuilder
 	#
 	def install_additional_packages(rootfs_dir)
 
-		apt_opts = [
-			'--yes',
-			'--no-install-recommends',
-		].join(' ')
-
 		trusty_update_repo = "deb http://us.archive.ubuntu.com/ubuntu/ trusty-updates main restricted"
 		trusty_universe_repo = "deb http://us.archive.ubuntu.com/ubuntu/ trusty universe"
 
@@ -185,16 +197,13 @@ class ImageBuilder < BaseBuilder
 			'mount -t proc none /proc',
 
 			# Kernel
-			"apt-get #{apt_opts} install linux-image-generic",
+			"apt-get #{COMMON_APT_OPTS} install linux-image-generic",
 
 			# unmount proc
 			'umount /proc',
 
 			# Download essential packages
-			"apt-get #{apt_opts} install #{ESSENTIAL_ADDON_PKGS.join(' ')}",
-
-			# Download additional developer packages
-			dev_build ? "apt-get #{apt_opts} install #{DEV_BUILD_PKGS.join(' ')}" : '',
+			"apt-get #{COMMON_APT_OPTS} install #{ESSENTIAL_PKGS.join(' ')}",
 
 			# Clean up the apt cache, reduces the img size
 			'apt-get clean',
@@ -214,9 +223,30 @@ class ImageBuilder < BaseBuilder
 	end
 
 	##
-	# Customize the rootfs with our files.
+	# Customize the rootfs with additional packages and files.
 	#
 	def customize(rootfs_dir)
+		info("Installing additional packages")
+		chroot_cmds = [
+			# Additional packages
+			"apt-get #{COMMON_APT_OPTS} install #{ADDITIONAL_PACKAGES.join(' ')}",
+
+			# Download additional developer packages
+			dev_build ? "apt-get #{COMMON_APT_OPTS} install #{DEV_BUILD_PKGS.join(' ')}" : '',
+
+			# Download and install influxdb
+			"wget https://s3.amazonaws.com/influxdb/influxdb_0.9.4.2_amd64.deb -O /tmp/influxdb.deb",
+			"dpkg -i /tmp/influxdb.deb",
+			"rm -f /tmp/influxdb.deb",
+		].reject(&:empty?)
+
+		chroot_cmds.each_with_index do |cmd, idx|
+			# If its an apt command, run it non interactively
+			cmd = "DEBIAN_FRONTEND=noninteractive #{cmd}" if cmd.include?('apt-get')
+			#info("[Step #{num+1} of #{chroot_cmds.length}] #{cmd}")
+			execute!("chroot #{rootfs_dir} /bin/bash -c \"#{cmd}\"", true)
+		end
+
 		info('Moving parts from warehouse into target')
 		# We need to perform the copy as root, since the dest dir is owned by root.
 		execute!("cp -r #{File.join(ROCKETSHIP_ROOTFS_DIR_PATH, '.')} #{rootfs_dir}")
@@ -226,9 +256,6 @@ class ImageBuilder < BaseBuilder
 	# Pack up the system image (rootfs) into a single file we can ship
 	#
 	def package(rootfs_dir)
-		# info('Setting up permissions on target')
-		# orig_uid = ENV['SUDO_UID']
-		# orig_gid = ENV['SUDO_GID']
 
 		cmd = [ 'tar ',
 			'--create',
@@ -252,7 +279,7 @@ class ImageBuilder < BaseBuilder
 	# Create a debootstrap compatible tarball of deb packages.
 	#
 	def create_debootstrap_packages_tarball()
-		cached_pkgs_tarball = File.join(BUILD_DIR_PATH, "cache", "debootstrap_pkgs.tgz")
+		cached_pkgs_tarball = CACHED_DEBOOTSTRAP_PKGS_PATH
 
 		banner("Removing old cached packages")
 		execute!("rm -f #{cached_pkgs_tarball}")
@@ -267,7 +294,7 @@ class ImageBuilder < BaseBuilder
 			banner("Invoking debootstrap to create new cached packages tarball")
 			execute!(["debootstrap",
 				"--variant minbase",
-				"--include #{ESSENTIAL_ADDON_PKGS.join(",")}",
+				"--include #{ESSENTIAL_PKGS.join(",")}",
 				"--make-tarball #{cached_pkgs_tarball}",
 				"trusty",
 				workdir,
