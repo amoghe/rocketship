@@ -48,6 +48,7 @@ class ImageBuilder < BaseBuilder
 	# Build the image
 	#
 	def build
+		header("Building system image")
 		self.ensure_root_privilege
 
 		banner('Build options')
@@ -150,15 +151,6 @@ class ImageBuilder < BaseBuilder
 			"wget https://s3.amazonaws.com/influxdb/influxdb_0.9.4.2_amd64.deb -q -O /tmp/influxdb.deb",
 			"dpkg -i /tmp/influxdb.deb",
 			"rm -f /tmp/influxdb.deb",
-
-			# mount proc, kernel installation needs it
-			'mount -t proc none /proc',
-
-			# Kernel
-			"apt-get #{common_apt_opts} install linux-image-generic",
-
-			# unmount proc
-			'umount /proc',
 
 			# Clean up the apt cache, reduces the img size
 			'apt-get clean',

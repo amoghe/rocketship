@@ -7,14 +7,15 @@ class DebootstrapBuilder < BaseBuilder
 
 	# These packages go into the barebones linux rootfs
 	ESSENTIAL_PKGS = [
-		'dbus'           ,
-		'iputils-ping'   , # ping
-		'isc-dhcp-client', # dhcp
-		'logrotate'      ,
-		'net-tools'      , # ifconfig
-		'rsyslog'        ,
-		'openssh-server' ,
-		'wget'           ,
+		'linux-image-generic',
+		'dbus'               ,
+		'iputils-ping'       , # ping
+		'isc-dhcp-client'    , # dhcp
+		'logrotate'          ,
+		'net-tools'          , # ifconfig
+		'rsyslog'            ,
+		'openssh-server'     ,
+		'wget'               ,
 	]
 
 	UBUNTU_APT_ARCHIVE_URL = "http://archive.ubuntu.com/ubuntu"
@@ -29,10 +30,14 @@ class DebootstrapBuilder < BaseBuilder
 	DEBOOTSTRAP_ROOTFS_NAME = "debootstrap_rootfs.tar.gz"
 	DEBOOTSTRAP_ROOTFS_PATH = File.join(CACHE_DIR_PATH, DEBOOTSTRAP_ROOTFS_NAME)
 
+	attr_reader :verbose
+
 	def initialize
+		@verbose = false
 	end
 
 	def create_debootstrap_rootfs()
+		header("Creating basic rootfs using debootstrap")
 
 		if File.exists?(CACHED_DEBOOTSTRAP_PKGS_PATH)
 			cached_pkgs_opt = "--unpack-tarball=#{CACHED_DEBOOTSTRAP_PKGS_PATH}"
@@ -46,6 +51,7 @@ class DebootstrapBuilder < BaseBuilder
 
 			info('Running debootstrap')
 			execute!(["debootstrap",
+				verbose ? "--verbose" : "",
 				"--variant minbase",
 				cached_pkgs_opt,
 				"--include #{ESSENTIAL_PKGS.join(",")}",
