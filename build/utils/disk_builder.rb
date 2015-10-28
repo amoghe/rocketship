@@ -51,13 +51,13 @@ class DiskBuilder < BaseBuilder
 
 	attr_reader :dev
 	attr_reader :image_tarball_path
-	attr_reader :debug
+	attr_reader :verbose
 
 	def initialize(image_path)
 		raise ArgumentError, "Invalid image specified: #{image_path}" unless File.exists?(image_path)
 
 		@image_tarball_path = image_path
-		@debug = debug
+		@verbose = false
 
 		# these will be set later
 		@dev = nil
@@ -268,7 +268,7 @@ class DiskBuilder < BaseBuilder
 					"--core-image=#{GRUB_ARCHITECTURE}/core.img"    ,
 					"--directory=#{grub_dir} " ,
 					"--device-map=#{device_map_filepath} " ,
-					debug ? '--verbose' : ''   ,
+					verbose ? '--verbose' : ''   ,
 					'--skip-fs-probe'          ,
 					"#{dev}"                   ,
 				].join(' '))
