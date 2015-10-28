@@ -32,16 +32,18 @@ class ImageBuilder < BaseBuilder
 	ROCKETSHIP_IMAGE_FILE_NAME = 'rocketship.img'
 	ROCKETSHIP_IMAGE_FILE_PATH = File.join(BUILD_DIR_PATH, ROCKETSHIP_IMAGE_FILE_NAME)
 
+	attr_reader :verbose
 	attr_reader :rootfs
 	attr_reader :dev_build
 	attr_reader :upgrade
 
-	def initialize(rootfs_tgz_path, opts={})
+	def initialize(rootfs_tgz_path, dev_build, verbose)
 		raise ArgumentError, "Missing rootfs file: #{rootfs_tgz_path}" unless File.exists?(rootfs_tgz_path)
 
 		@rootfs    = rootfs_tgz_path
-		@dev_build = !!opts[:dev_build]
-		@upgrade   = !!opts[:upgrade]
+		@dev_build = dev_build
+		@upgrade   = false # TODO
+		@verbose   = verbose
 	end
 
 	##
@@ -52,7 +54,7 @@ class ImageBuilder < BaseBuilder
 		self.ensure_root_privilege
 
 		banner('Build options')
-		info("Install additional packages\t: #{dev_build}")
+		info("Install developer packages\t: #{dev_build}")
 		info("Upgrade the distribution\t: #{upgrade}")
 		sleep(1) # Let it sink in
 

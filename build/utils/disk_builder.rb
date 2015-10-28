@@ -53,11 +53,11 @@ class DiskBuilder < BaseBuilder
 	attr_reader :image_tarball_path
 	attr_reader :verbose
 
-	def initialize(image_path)
+	def initialize(image_path, verbose)
 		raise ArgumentError, "Invalid image specified: #{image_path}" unless File.exists?(image_path)
 
 		@image_tarball_path = image_path
-		@verbose = false
+		@verbose = verbose
 
 		# these will be set later
 		@dev = nil

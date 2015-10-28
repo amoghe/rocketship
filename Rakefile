@@ -74,13 +74,13 @@ namespace :build do
 
 	# How to build up a cache of packages needed for speeding up repeated debootstrap runs.
 	file DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		DebootstrapBuilder.new.create_debootstrap_packages_tarball()
+		DebootstrapBuilder.new(ENV.has_key?('VERBOSE')).create_debootstrap_packages_tarball()
 	end
 
 	# How to build a basic rootfs using debootstrap.
 	# This relies on a tarball of cached packages that is usable by debootstrap.
 	file DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH => DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		DebootstrapBuilder.new.create_debootstrap_rootfs()
+		DebootstrapBuilder.new(ENV.has_key?('VERBOSE')).create_debootstrap_rootfs()
 	end
 
 	# How to build a rocketship rootfs/image using a debootstrap rootfs.
@@ -89,12 +89,14 @@ namespace :build do
 		ALL_SHELLCMD_BINPATHS_COPIED + \
 		[DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH]
 	file ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH => image_deps do
-		ImageBuilder.new(DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH).build()
+		dev_build = ENV.has_key?('DEV')
+		verbose   = ENV.has_key?('VERBOSE')
+		ImageBuilder.new(DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH, dev_build, verbose).build()
 	end
 
 	# How to build a disk (vmdk) given a rocketship rootfs/image.
 	file DiskBuilder::VMDK_FILE_PATH => ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH do
-		DiskBuilder.new(ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH).build
+		DiskBuilder.new(ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH, ENV.has_key?('VERBOSE')).build
 	end
 
 	#
@@ -112,25 +114,25 @@ namespace :build do
 	#
 	# Build a tarball of cached deb packages usable by debootstrap (created by debootstrap).
 	#
-	desc 'Build debootstrap cache'
+	desc 'Build debootstrap cache (env vars: VERBOSE)'
 	task :debootstrap_cache => DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH
 
 	#
 	# Build a basic rootfs using debootstrap.
 	#
-	desc 'Build basic rootfs (using debootstrap)'
+	desc 'Build basic rootfs using debootstrap (env vars: VERBOSE)'
 	task :debootstrap_rootfs => DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH
 
 	#
 	# Build image.
 	#
-	desc 'Build the rocketship image'
+	desc 'Build the rocketship image (env vars: DEV, VERBOSE)'
 	task :image => ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH
 
 	#
 	# Build disk.
 	#
-	desc 'Build a bootable disk containing the rocketship image'
+	desc 'Build a bootable disk containing the rocketship image (env vars: VERBOSE)'
 	task :disk => DiskBuilder::VMDK_FILE_PATH
 end
 
@@ -165,5 +167,5 @@ namespace :clean do
 	end
 
 	desc 'Clean everything'
-	task :full => [:allbins, :copiedbins, :image, :disk]
+	task :full => [:allbins, :copiedbins, :debootstrap_rootfs, :image, :disk]
 end

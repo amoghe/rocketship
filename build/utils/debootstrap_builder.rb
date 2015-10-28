@@ -32,8 +32,8 @@ class DebootstrapBuilder < BaseBuilder
 
 	attr_reader :verbose
 
-	def initialize
-		@verbose = false
+	def initialize(verbose)
+		@verbose = !!verbose
 	end
 
 	def create_debootstrap_rootfs()
@@ -49,7 +49,7 @@ class DebootstrapBuilder < BaseBuilder
 
 		self.on_mounted_tmpfs do |tempdir|
 
-			info('Running debootstrap')
+			banner('Running debootstrap')
 			execute!(["debootstrap",
 				verbose ? "--verbose" : "",
 				"--variant minbase",
@@ -62,7 +62,7 @@ class DebootstrapBuilder < BaseBuilder
 
 			cmd =
 
-			info('Packaging rootfs')
+			banner('Packaging rootfs')
 			execute!(['tar ',
 				'--create',
 				'--gzip',
@@ -97,6 +97,7 @@ class DebootstrapBuilder < BaseBuilder
 
 			banner("Invoking debootstrap to create new cached packages tarball")
 			execute!(["debootstrap",
+				verbose ? "--verbose" : "",
 				"--variant minbase",
 				"--include #{ESSENTIAL_PKGS.join(",")}",
 				"--make-tarball #{cached_pkgs_tarball}",
