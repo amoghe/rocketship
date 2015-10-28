@@ -34,6 +34,23 @@ class BaseBuilder
 		end
 	end
 
+	def header(line)
+		len = line.length
+		border = '|' + '-'* (len+2) + '|'
+
+		lines = [
+			'',
+			border,
+			'| ' + line + ' |',
+			border,
+			'',
+		].each do |l|
+			l = l.to_s.green if STDOUT.tty?
+			puts(l)
+		end
+	end
+
+
 	#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	# Helper module to house functions needed during the build.
 	#

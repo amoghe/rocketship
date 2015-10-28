@@ -7,178 +7,163 @@ require 'bundler/setup'
 
 require_relative 'build/utils/disk_builder'
 require_relative 'build/utils/image_builder'
+require_relative 'build/utils/debootstrap_builder'
 
 namespace :build do
 
-	ROCKETSHIP_COMPONENTS = [ 'commander', 'crashcorder', 'preflight', 'radio', 'shell']
+	def binpath(name)                 ; File.join("bin", name, name)                      ; end
+	def copied_binpath(name)          ; File.join('build/rootfs/bin', name)               ; end
+	def shellcmd_binpath(name)        ; File.join("bin/shellcommands", name, name)        ; end
+	def copied_shellcmd_binpath(name) ; File.join('build/rootfs/opt/shellcommands', name) ; end
 
-	SHELL_COMMANDS = Rake::FileList.new("bin/shellcommands/*")
+	# Names of component binaries
+	ROCKETSHIP_COMPONENTS = [
+		'commander' ,
+		'crashcorder',
+		'preflight'  ,
+		'radio'      ,
+		'shell'      ,
+	]
 
-	build_bin_tasks = []
-	copy_bin_tasks  = []
+	# Names of shell commands
+	ROCKETSHIP_SHELLCMDS = [
+		'hostname'   ,
+		'interfaces' ,
+		'users'      ,
+	]
+
+	ALL_ROCKETSHIP_BINPATHS        = ROCKETSHIP_COMPONENTS.map { |comp| binpath(comp) }
+	ALL_ROCKETSHIP_BINPATHS_COPIED = ROCKETSHIP_COMPONENTS.map { |comp| copied_binpath(comp) }
+
+	ALL_SHELLCMD_BINPATHS          = ROCKETSHIP_SHELLCMDS.map { |cmd| shellcmd_binpath(cmd) }
+	ALL_SHELLCMD_BINPATHS_COPIED   = ROCKETSHIP_SHELLCMDS.map { |cmd| copied_shellcmd_binpath(cmd) }
 
 	#
-	# Tasks for building binaries (intentionally not given descriptions, so that they are suppressed
+	# Tasks for building various files (intentionally not given descriptions, so that they are suppressed
 	# in the -T output). Instead, see the :allbins target which builds these.
 	#
-	ROCKETSHIP_COMPONENTS.each_with_index do |component, idx|
-		taskname = "bin:#{component}"
-		build_bin_tasks << taskname
-		task taskname do |t|
-			subdir = File.join('bin', component)
+
+	ROCKETSHIP_COMPONENTS.each do |component|
+		# How to build the component binaries.
+		file binpath(component) do
+			subdir = File.dirname(binpath(component))
 			sh("cd #{subdir}; go get && go build")
 		end
-	end
 
-	SHELL_COMMANDS.each do |cmd_dir|
-		taskname = "shellcmd:#{File.basename(cmd_dir)}"
-		build_bin_tasks << taskname
-		task taskname do |t|
-			sh("cd #{cmd_dir} && go get && go build")
+		# How to copy it into the rootfs
+		file copied_binpath(component) => binpath(component) do
+			sh("mkdir -p #{File.dirname(copied_binpath(component))}")
+			sh("cp #{binpath(component)} #{copied_binpath(component)}")
 		end
 	end
 
-	#
-	# Tasks for copying component binaries (they depend on respective task to build binaries)
-	# (intentionally not given descriptions so that they are suppressed in the -T output)
-	#
-	ROCKETSHIP_COMPONENTS.each_with_index do |component, idx|
-		taskname = "copy:#{component}"
-		copy_bin_tasks << taskname
-		task taskname => "bin:#{component}" do |t|
-			srcfile = File.join(File.dirname(__FILE__), 'bin', component, component)
-			dstfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'bin', component)
+	ROCKETSHIP_SHELLCMDS.each do |cmd_name|
+		# How to build the shell command binaries.
+		file shellcmd_binpath(cmd_name) do
+			subdir = File.dirname(shellcmd_binpath(cmd_name))
+			sh("cd #{subdir} && go get && go build")
+		end
 
-			sh("mkdir -p #{File.dirname(dstfile)}")
-			sh("cp #{srcfile} #{dstfile}")
+		# How to copy it into the rootfs
+		file copied_shellcmd_binpath(cmd_name) => shellcmd_binpath(cmd_name) do
+			sh("mkdir -p #{File.dirname(copied_shellcmd_binpath(cmd_name))}")
+			sh("cp #{shellcmd_binpath(cmd_name)} #{copied_shellcmd_binpath(cmd_name)}")
 		end
 	end
 
-	SHELL_COMMANDS.each do |cmd_dir|
-		component = File.basename(cmd_dir)
-		taskname = "copy_shellcmd:#{component}"
-		copy_bin_tasks << taskname
-		task taskname => "shellcmd:#{component}" do |t|
 
-			srcfile = File.join(File.dirname(__FILE__), 'bin', 'shellcommands', component, component)
-			dstfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'opt', 'shellcommands', component)
+	# How to build up a cache of packages needed for speeding up repeated debootstrap runs.
+	file DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH do
+		DebootstrapBuilder.new.create_debootstrap_packages_tarball()
+	end
 
-			sh("mkdir -p #{File.dirname(dstfile)}")
-			sh("cp #{srcfile} #{dstfile}")
-		end
+	# How to build a basic rootfs using debootstrap.
+	# This relies on a tarball of cached packages that is usable by debootstrap.
+	file DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH => DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH do
+		DebootstrapBuilder.new.create_debootstrap_rootfs()
+	end
+
+	# How to build a rocketship rootfs/image using a debootstrap rootfs.
+	image_deps = \
+		ALL_ROCKETSHIP_BINPATHS_COPIED + \
+		ALL_SHELLCMD_BINPATHS_COPIED + \
+		[DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH]
+	file ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH => image_deps do
+		ImageBuilder.new(DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH).build()
+	end
+
+	# How to build a disk (vmdk) given a rocketship rootfs/image.
+	file DiskBuilder::VMDK_FILE_PATH => ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH do
+		DiskBuilder.new(ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH).build
 	end
 
 	#
-	# Build ALL binaries (via dependencies)
+	# Build ALL binaries
 	#
 	desc "Build all binaries"
-	task :allbins => build_bin_tasks
+	task :allbins => ALL_ROCKETSHIP_BINPATHS + ALL_SHELLCMD_BINPATHS
 
 	#
-	# Copy all binaries into the rootfs
+	# Copy all binaries into the rootfs.
 	#
 	desc "Copy binaries into rootfs in preparation for image build"
-	task :copybins => copy_bin_tasks
+	task :copybins => ALL_ROCKETSHIP_BINPATHS_COPIED + ALL_SHELLCMD_BINPATHS_COPIED
 
 	#
-	# Build a tarball of cached deb packages usable by debootstrap (created by debootstrap)
+	# Build a tarball of cached deb packages usable by debootstrap (created by debootstrap).
 	#
 	desc 'Build debootstrap cache'
-	task :debootstrap_cache do |t|
-		ImageBuilder.new().create_debootstrap_packages_tarball()
-	end
+	task :debootstrap_cache => DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH
 
 	#
-	# Build image
-	# (depends on the task that copies the binaries)
+	# Build a basic rootfs using debootstrap.
 	#
-	desc 'Build the system image (params are bool,bool,string)'
-	task :image, [:debug, :upgrade, :rootfs_tarball_path,] => :copybins do |t, args|
-
-		args.with_defaults(:debug               => false)
-		args.with_defaults(:upgrade             => false)
-		args.with_defaults(:rootfs_tarball_path => nil)
-
-		ImageBuilder.new(args.rootfs_tarball_path,
-					:debug   => (args.debug   and args.debug   == 'true'),
-					:upgrade => (args.upgrade and args.upgrade == 'true'),
-		).build
-	end
+	desc 'Build basic rootfs (using debootstrap)'
+	task :debootstrap_rootfs => DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH
 
 	#
-	# Build disk (put image on specified disk device)
-	# (depends on the task that builds the image).
+	# Build image.
 	#
-	desc 'Build a bootable disk containing the system image'
-	task :disk, [:image_file] do |t, args|
-		args.with_defaults(:image_path  => ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH)
-		args.with_defaults(:debug       => false)
+	desc 'Build the rocketship image'
+	task :image => ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH
 
-		DiskBuilder.new(args.image_path, (args.debug and args.debug == 'true')).build
-	end
-
+	#
+	# Build disk.
+	#
+	desc 'Build a bootable disk containing the rocketship image'
+	task :disk => DiskBuilder::VMDK_FILE_PATH
 end
 
 # Clean tasks
 namespace :clean do
 
-	clean_bin_tasks = []
-	clean_copied_tasks = []
-
-	# [INTERNAL] Tasks for cleaning built binaries (in the src dir).
-	# (intentionally missing descriptions so that they are omitted in the -T output. Instead see
-	# the :allbins target that uses these).
-	ROCKETSHIP_COMPONENTS.each do |component|
-		taskname = component
-		clean_bin_tasks << taskname
-		task taskname do |t|
-			dir = File.join(File.dirname(__FILE__), 'bin', component)
-			sh("cd #{dir} && go clean")
-		end
-	end
-
-	SHELL_COMMANDS.each do |cmd_dir|
-		taskname = "shellcmd:#{File.basename(cmd_dir)}"
-		clean_bin_tasks << taskname
-		task taskname do |t|
-			sh("cd #{cmd_dir} && go clean")
-		end
-	end
-
-	# [INTERNAL] Tasks for cleaning up copied binaries (in the rootfs dir).
-	# (Intentionally missing descriptions so that they are omitted in the -T output. Instead see
-	# the :allbins target that uses these).
-	ROCKETSHIP_COMPONENTS.each do |component|
-		taskname = "copied_#{component}"
-		clean_copied_tasks << taskname
-		task taskname do
-			srcfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'bin', component)
-			sh("rm -f #{srcfile}")
-		end
-	end
-
-	SHELL_COMMANDS.each do |cmd_dir|
-		cmd = File.basename(cmd_dir)
-		taskname = "copied_shellcmd:#{cmd}"
-		clean_copied_tasks << taskname
-		task taskname do |t|
-			srcfile = File.join(File.dirname(__FILE__), 'build', 'rootfs', 'opt', 'shellcommands', cmd)
-			sh("rm -f #{srcfile}")
-		end
-	end
-
-	# User facing task that cleans up all the binaries
 	desc "Clean all built binaries"
-	task :allbins => clean_bin_tasks
+	task :allbins do
+		ROCKETSHIP_COMPONENTS.map{|comp| binpath(comp)}.each{|filepath| sh("rm -f #{filepath}")}
+		ROCKETSHIP_SHELLCMDS.map{|cmd| shellcmd_binpath(cmd)}.each{|filepath| sh("rm -f #{filepath}")}
+	end
 
 	desc "Clean binaries copied into rootfs during image builds"
-	task :copiedbins => clean_copied_tasks
+	task :copiedbins do
+		ROCKETSHIP_COMPONENTS.map{|comp| copied_binpath(comp)}.each{|filepath| sh("rm -f #{filepath}")}
+		ROCKETSHIP_SHELLCMDS.map{|cmd| copied_shellcmd_binpath(cmd)}.each{|filepath| sh("rm -f #{filepath}")}
+	end
+
+	desc "Clean the debootstrap rootfs file"
+	task :debootstrap_rootfs do
+		sh("rm -f #{DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH}")
+	end
+
+	desc "Clean the rocketship image file"
+	task :image do
+		sh("rm -f #{ImageBuilder::ROCKETSHIP_IMAGE_FILE_PATH}")
+	end
+
+	desc "Clean the disk file"
+	task :disk do
+		sh("rm -f #{DiskBuilder::VMDK_FILE_PATH}")
+	end
 
 	desc 'Clean everything'
-	task :full => [:allbins, :copiedbins] do
-		# bins (built, copied) will be cleaned by dependent task.
-		# Clean up image files, disk files
-		sh("rm -f build/rocketship.img")
-		sh("rm -f build/rocketship.vmdk")
-	end
+	task :full => [:allbins, :copiedbins, :image, :disk]
 end

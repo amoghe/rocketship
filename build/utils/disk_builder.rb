@@ -53,7 +53,7 @@ class DiskBuilder < BaseBuilder
 	attr_reader :image_tarball_path
 	attr_reader :debug
 
-	def initialize(image_path, debug)
+	def initialize(image_path)
 		raise ArgumentError, "Invalid image specified: #{image_path}" unless File.exists?(image_path)
 
 		@image_tarball_path = image_path
@@ -68,6 +68,7 @@ class DiskBuilder < BaseBuilder
 	# Image the disk.
 	#
 	def build
+		header("Building disk")
 		self.create_loopback_disk
 		self.create_partitions
 		self.install_grub
