@@ -31,6 +31,9 @@ class ImageBuilder < BaseBuilder
 	ROCKETSHIP_IMAGE_FILE_NAME = "rocketship.img"
 	ROCKETSHIP_IMAGE_FILE_PATH = File.join(BUILD_DIR_PATH, ROCKETSHIP_IMAGE_FILE_NAME)
 
+	PROMETHEUS_URL = "https://github.com/prometheus/prometheus/releases/download/0.16.1/prometheus-0.16.1.linux-amd64.tar.gz"
+	PROMETHEUS_EXPORTER_URL = "https://github.com/prometheus/node_exporter/releases/download/0.12.0rc1/node_exporter-0.12.0rc1.linux-amd64.tar.gz"
+
 	attr_reader :verbose
 	attr_reader :rootfs
 	attr_reader :dev_build
@@ -148,10 +151,10 @@ class ImageBuilder < BaseBuilder
 			# Download additional developer packages
 			dev_build ? "apt-get #{common_apt_opts} install #{DEV_BUILD_PKGS.join(' ')}" : '',
 
-			# Download and install influxdb
-			"wget https://s3.amazonaws.com/influxdb/influxdb_0.9.4.2_amd64.deb -q -O /tmp/influxdb.deb",
-			"dpkg -i /tmp/influxdb.deb",
-			"rm -f /tmp/influxdb.deb",
+			# Download and unpack prometheus
+			"mkdir /opt/prometheus",
+			"wget #{PROMETHEUS_URL} -q -O - | tar -xzf - -C /opt/prometheus --strip=1",
+			"wget #{PROMETHEUS_EXPORTER_URL} -q -O - | tar -xzf - -C /usr/local/bin",
 
 			# Clean up the apt cache, reduces the img size
 			'apt-get clean',
