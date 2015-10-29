@@ -2,34 +2,33 @@ require 'open3'
 require 'pp'
 
 require_relative 'base_builder'
-require_relative 'disk_builder' # So we access its constants
+require_relative 'disk_builder' # So we can access its constants
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Module that contains the routines used to build images.
 #
 class ImageBuilder < BaseBuilder
 
-	IMAGE_VERSION 	= '0.3.0'
+	IMAGE_VERSION 	= "0.3.0"
 
 	# These are packages that are installed when transforming a basic rootfs into a rocketship rootfs.
 	ADDITIONAL_PACKAGES = [
-		'ca-certificates',
-		'collectd-core'  ,
+		"ca-certificates",
 	]
 
 	# These are packages installed when we detect a developer build.
 	DEV_BUILD_PKGS = [
-		'emacs24-nox',
-		'sudo',
-		'lsof',
+		"emacs24-nox",
+		"sudo",
+		"lsof",
 	]
 
 	CWD = File.dirname(__FILE__)
-	BUILD_DIR_PATH = File.expand_path(File.join(CWD, '..'))
+	BUILD_DIR_PATH = File.expand_path(File.join(CWD, ".."))
 	CACHE_DIR_PATH = File.expand_path(File.join(BUILD_DIR_PATH, "cache"))
-	ROCKETSHIP_ROOTFS_DIR_PATH = File.join(BUILD_DIR_PATH, 'rootfs')
+	ROCKETSHIP_ROOTFS_DIR_PATH = File.join(BUILD_DIR_PATH, "rootfs")
 
-	ROCKETSHIP_IMAGE_FILE_NAME = 'rocketship.img'
+	ROCKETSHIP_IMAGE_FILE_NAME = "rocketship.img"
 	ROCKETSHIP_IMAGE_FILE_PATH = File.join(BUILD_DIR_PATH, ROCKETSHIP_IMAGE_FILE_NAME)
 
 	attr_reader :verbose
@@ -63,7 +62,7 @@ class ImageBuilder < BaseBuilder
 				banner("Unpacking rootfs")
 				self.extract_rootfs(tempdir)
 
-				banner('Updating rootfs with additional components')
+				banner('Installing additional components')
 				self.install_additional_packages(tempdir)
 
 				banner('Packaging the image')
