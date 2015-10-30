@@ -1,10 +1,14 @@
 package stats
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"rocketship/regulog"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
@@ -12,6 +16,9 @@ import (
 
 const (
 	URLPrefix = "/stats"
+
+	ECpu        = URLPrefix + "/cpu"
+	EMemoryFree = URLPrefix + "/memory/free"
 
 	PrometheusConfPath = "/opt/prometheus/prometheus.yml"
 )
@@ -25,6 +32,9 @@ type Controller struct {
 
 func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
 	ctrl := &Controller{db: db, mux: web.New(), log: logger}
+
+	ctrl.mux.Get(ECpu+"/:cpu_id", ctrl.GetCPUStats)
+	ctrl.mux.Get(EMemoryFree, ctrl.GetMemFreeStats)
 
 	return ctrl
 }
@@ -86,4 +96,97 @@ func (c *Controller) SeedDB() {
 
 func (c *Controller) MigrateDB() {
 	return
+}
+
+//
+// Handlers
+//
+
+func (c *Controller) GetCPUStats(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	var (
+		statName string
+		duration time.Duration
+	)
+
+	duration, err := parseDurationFromContext(ctx)
+	if err != nil {
+		jsonError(err, w)
+		return
+	}
+
+	if cpu, there := ctx.URLParams["cpu_id"]; there {
+		if id, err := strconv.Atoi(cpu); err != nil {
+			jsonError(fmt.Errorf("Invalid CPU ID"), w)
+			return
+		} else {
+			statName = fmt.Sprintf("node_cpu{cpu=\"cpu%d\"}", id)
+		}
+	}
+
+	samples, err := PrometheusStats(statName, duration)
+	if err != nil {
+		jsonError(err, w)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(samples); err != nil {
+		jsonError(err, w)
+	}
+}
+
+func (c *Controller) GetMemFreeStats(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	var (
+		statName = "node_memory_MemFree"
+		duration time.Duration
+	)
+
+	duration, err := parseDurationFromContext(ctx)
+	if err != nil {
+		jsonError(err, w)
+		return
+	}
+
+	samples, err := PrometheusStats(statName, duration)
+	if err != nil {
+		jsonError(err, w)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(samples); err != nil {
+		jsonError(err, w)
+	}
+}
+
+//
+// Helpers
+//
+
+func parseDurationFromContext(ctx web.C) (time.Duration, error) {
+	var (
+		err   error
+		there bool
+		dur   string
+		ret   time.Duration
+	)
+
+	if dur, there = ctx.URLParams["duration"]; !there {
+		return ret, fmt.Errorf("Missing duration parameter")
+	}
+	if len(dur) <= 0 {
+		return ret, fmt.Errorf("Missing duration parameter")
+	}
+	if ret, err = time.ParseDuration(dur); err != nil {
+		return ret, err
+	}
+	return ret, nil
+}
+
+func jsonError(err error, w http.ResponseWriter) {
+	resp := struct {
+		Error string `json:"error"`
+	}{
+		Error: err.Error(),
+	}
+
+	json.NewEncoder(w).Encode(resp)
 }
