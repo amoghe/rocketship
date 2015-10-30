@@ -8,6 +8,7 @@ import (
 	"rocketship/commander/modules/host"
 	"rocketship/commander/modules/radio"
 	"rocketship/commander/modules/ssh"
+	"rocketship/commander/modules/stats"
 	"rocketship/commander/modules/syslog"
 	"rocketship/regulog"
 
@@ -31,5 +32,6 @@ func LoadAll(db *gorm.DB, log regulog.Logger) []Controller {
 		ssh.NewController(db, log),
 		syslog.NewController(db, log),
 		bootbank.NewController(db, log),
+		stats.NewController(db, log),
 	}
 }
