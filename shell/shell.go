@@ -8,9 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/amoghe/distillog"
 	"github.com/peterh/liner"
-
-	"rocketship/regulog"
 )
 
 const (
@@ -22,7 +21,7 @@ type Shell struct {
 	Prompt          string // Prompt to display to the user.
 	CommandsDirPath string // CommandsDirPath is where commands get loaded from.
 	HistoryFilePath string // HistoryFilePath is where command history gets written to. Empty string disables it.
-	Log             regulog.Logger
+	Log             distillog.Logger
 
 	line         *liner.State
 	commandNames map[string]bool
@@ -30,7 +29,7 @@ type Shell struct {
 
 func New() *Shell {
 	return &Shell{
-		Log: regulog.NewNull("shell"),
+		Log: distillog.NewNullLogger("shell"),
 
 		line:         liner.NewLiner(),
 		commandNames: make(map[string]bool),
