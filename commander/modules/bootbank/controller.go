@@ -14,8 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"rocketship/regulog"
-
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/juju/deputy"
 	"github.com/zenazn/goji/web"
@@ -40,11 +39,11 @@ const (
 type Controller struct {
 	db   *gorm.DB
 	mux  *web.Mux
-	log  regulog.Logger
+	log  distillog.Logger
 	lock sync.Mutex
 }
 
-func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
+func NewController(db *gorm.DB, logger distillog.Logger) *Controller {
 	ctrl := &Controller{db: db, mux: web.New(), log: logger}
 
 	ctrl.mux.Get(EBootbanks, ctrl.GetBootbanks)

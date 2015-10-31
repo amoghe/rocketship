@@ -10,7 +10,7 @@ import (
 	"net/mail"
 	"testing"
 
-	"rocketship/regulog"
+	"github.com/amoghe/distillog"
 
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
@@ -50,7 +50,7 @@ func (ts *RadioTestSuite) SetUpTest(c *C) {
 	db.SetLogger(log.New(ioutil.Discard, "", 0))
 
 	ts.db = db
-	ts.controller = NewController(&ts.db, regulog.NewNull(""))
+	ts.controller = NewController(&ts.db, distillog.NewNullLogger(""))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

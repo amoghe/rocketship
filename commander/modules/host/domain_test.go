@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"rocketship/regulog"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 
@@ -26,7 +26,7 @@ func (ts *DomainTestSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 	ts.db = db
 
-	ts.controller = NewController(&ts.db, regulog.NewNull("test"))
+	ts.controller = NewController(&ts.db, distillog.NewNullLogger("test"))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

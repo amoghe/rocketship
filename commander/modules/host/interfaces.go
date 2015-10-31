@@ -8,9 +8,9 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
-	"rocketship/regulog"
 	"strings"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 )
@@ -770,7 +770,7 @@ func (c *Controller) seedInterface() {
 
 type ifaceCtrl struct {
 	Name string
-	Log  regulog.Logger
+	Log  distillog.Logger
 }
 
 func (i ifaceCtrl) Up(forceUp bool) error {

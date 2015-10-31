@@ -5,8 +5,7 @@ import (
 	"log"
 	"testing"
 
-	"rocketship/regulog"
-
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -24,7 +23,7 @@ func Test(t *testing.T) {
 
 type ModulesTestSuite struct {
 	db  gorm.DB
-	log regulog.Logger
+	log distillog.Logger
 }
 
 func (ts *ModulesTestSuite) SetUpTest(c *C) {
@@ -34,7 +33,7 @@ func (ts *ModulesTestSuite) SetUpTest(c *C) {
 	db.SetLogger(log.New(ioutil.Discard, "", 0))
 	ts.db = db
 
-	ts.log = regulog.NewNull("test")
+	ts.log = distillog.NewNullLogger("test")
 }
 
 func (ts *ModulesTestSuite) TearDownTest(c *C) {

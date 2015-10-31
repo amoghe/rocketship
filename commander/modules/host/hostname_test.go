@@ -7,11 +7,11 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"rocketship/regulog"
 	"strings"
 
 	. "gopkg.in/check.v1"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 
@@ -35,7 +35,7 @@ func (ts *HostnameTestSuite) SetUpTest(c *C) {
 	db.SetLogger(log.New(ioutil.Discard, "", 0))
 	ts.db = db
 
-	ts.controller = NewController(&ts.db, regulog.NewNull("test"))
+	ts.controller = NewController(&ts.db, distillog.NewNullLogger("test"))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

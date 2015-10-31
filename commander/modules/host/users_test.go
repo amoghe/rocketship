@@ -10,11 +10,10 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"rocketship/regulog"
-
 	_ "github.com/mattn/go-sqlite3"
 	. "gopkg.in/check.v1"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 )
@@ -32,7 +31,7 @@ func (ts *UsersTestSuite) SetUpTest(c *C) {
 	db.SetLogger(log.New(ioutil.Discard, "", 0))
 	ts.db = db
 
-	ts.controller = NewController(&ts.db, regulog.NewNull(""))
+	ts.controller = NewController(&ts.db, distillog.NewNullLogger(""))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

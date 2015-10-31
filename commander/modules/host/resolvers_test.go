@@ -3,8 +3,8 @@ package host
 import (
 	"io/ioutil"
 	"log"
-	"rocketship/regulog"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -24,7 +24,7 @@ func (ts *ResolversTestSuite) SetUpTest(c *C) {
 	db.SetLogger(log.New(ioutil.Discard, "", 0))
 	ts.db = db
 
-	ts.controller = NewController(&ts.db, regulog.NewNull("test"))
+	ts.controller = NewController(&ts.db, distillog.NewNullLogger("test"))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

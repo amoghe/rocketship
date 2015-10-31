@@ -1,10 +1,10 @@
 package bootbank
 
 import (
-	"rocketship/regulog"
 	"strings"
 	"testing"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -31,7 +31,7 @@ func (ts *BootbankTestSuite) SetUpTest(c *C) {
 	c.Assert(err, IsNil)
 	ts.db = db
 
-	ts.controller = NewController(&ts.db, regulog.NewNull("test"))
+	ts.controller = NewController(&ts.db, distillog.NewNullLogger("test"))
 	ts.controller.MigrateDB()
 	ts.controller.SeedDB()
 }

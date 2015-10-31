@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"distillog"
 	"net/http"
 
 	"rocketship/commander/modules/bootbank"
@@ -12,6 +11,7 @@ import (
 	"rocketship/commander/modules/stats"
 	"rocketship/commander/modules/syslog"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 )
