@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/amoghe/distillog"
 
 	"rocketship/crashcorder"
 )
@@ -25,7 +25,7 @@ func main() {
 	var (
 		cc *crashcorder.Crashcorder
 
-		logger  = log.New(os.Stderr, "", log.LstdFlags)
+		logger  = distillog.NewStdoutLogger("crashcorder")
 		sigChan = make(chan os.Signal)
 	)
 
@@ -33,12 +33,13 @@ func main() {
 	kingpin.Parse()
 
 	die := func(err error) {
-		logger.Fatalln("Exiting due to:", err.Error())
+		logger.Errorln("Exiting due to:", err.Error())
+		os.Exit(2)
 	}
 
 	parseConfig := func() (cfg crashcorder.Config) {
 		// read config file
-		logger.Println("Reading config file from", *cfgFile)
+		logger.Infoln("Reading config file from", *cfgFile)
 		fileBytes, err := ioutil.ReadFile(*cfgFile)
 		if err != nil {
 			die(err)
@@ -54,7 +55,7 @@ func main() {
 	}
 
 	startCrashcorder := func() {
-		logger.Println("Starting crashcorder")
+		logger.Infoln("Starting crashcorder")
 		cc = crashcorder.New(parseConfig(), logger)
 		if err := cc.Start(); err != nil {
 			die(err)
@@ -63,24 +64,24 @@ func main() {
 
 	restartCrashcorder := func() {
 		if cc != nil {
-			logger.Println("Stopping crashcorder")
+			logger.Infoln("Stopping crashcorder")
 			cc.Stop(true)
 		}
 		startCrashcorder()
 	}
 
 	mainLoop := func() {
-		logger.Println("Initializing signal handler")
+		logger.Infoln("Initializing signal handler")
 		signal.Notify(sigChan, syscall.SIGINT)
 
-		logger.Println("Starting main signal handler loop")
+		logger.Infoln("Starting main signal handler loop")
 		for sig := range sigChan {
 			switch sig {
 			case syscall.SIGHUP:
-				logger.Println("Received SIGHUP - reloading")
+				logger.Infoln("Received SIGHUP - reloading")
 				restartCrashcorder()
 			case syscall.SIGINT, syscall.SIGTERM:
-				logger.Println("Received", sig, "- terminating")
+				logger.Infoln("Received", sig, "- terminating")
 				cc.Stop(true)
 				return
 			}
@@ -94,5 +95,5 @@ func main() {
 	// run main loop that coordinates crashcorder state by handling signals
 	mainLoop()
 
-	logger.Println("Crashcorder process exited")
+	logger.Infoln("Crashcorder process exited")
 }

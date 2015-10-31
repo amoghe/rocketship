@@ -2,9 +2,9 @@ package crashcorder
 
 import (
 	"bytes"
+	"distillog"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -44,14 +44,14 @@ type Config struct {
 // Crashcorder holds all the state for an instance of the crash detector.
 type Crashcorder struct {
 	Config Config
-	Logger *log.Logger
+	Logger distillog.Logger
 
 	stopChan chan bool
 	doneChan chan bool
 	watcher  *inotify.Watcher
 }
 
-func New(cfg Config, log *log.Logger) *Crashcorder {
+func New(cfg Config, log distillog.Logger) *Crashcorder {
 	return &Crashcorder{
 		Config: cfg,
 		Logger: log,
@@ -70,7 +70,7 @@ func (c *Crashcorder) Start() error {
 	if c.watcher != nil {
 		err := c.watcher.Close()
 		if err != nil {
-			c.Logger.Println("Failed to close existing watcher", err)
+			c.Logger.Infoln("Failed to close existing watcher", err)
 		}
 	}
 
@@ -81,7 +81,7 @@ func (c *Crashcorder) Start() error {
 
 	c.watcher = watcher
 
-	c.Logger.Println("Watching dir", c.Config.CoresDirectory)
+	c.Logger.Infoln("Watching dir", c.Config.CoresDirectory)
 	err = watcher.AddWatch(c.Config.CoresDirectory, inotify.IN_CREATE)
 	if err != nil {
 		return err
@@ -99,19 +99,19 @@ func (c *Crashcorder) Start() error {
 // Stop initiates the shutdown of the crashcorder watcher. Optionally it blocks
 // till it is fully stopped.
 func (c *Crashcorder) Stop(wait bool) {
-	c.Logger.Println("Stopping watch routine")
+	c.Logger.Infoln("Stopping watch routine")
 	c.stopChan <- true
 
 	if wait {
 		c.Wait()
 	}
 
-	c.Logger.Println("Stopped crashcorder")
+	c.Logger.Infoln("Stopped crashcorder")
 }
 
 // Wait blocks till the crashcorder is fully stopped
 func (c *Crashcorder) Wait() {
-	c.Logger.Println("Blocking till watch routine has stopped")
+	c.Logger.Infoln("Blocking till watch routine has stopped")
 	<-c.doneChan
 }
 
@@ -131,31 +131,31 @@ func (c *Crashcorder) configureKernelCorePattern() error {
 }
 
 func (c *Crashcorder) watchForCreates() {
-	c.Logger.Println("Starting watch for dir activity")
+	c.Logger.Debugln("Starting watch for dir activity")
 
 loop:
 	for {
 		select {
 		case <-c.stopChan:
-			c.Logger.Println("Watch routine requested to stop")
+			c.Logger.Infoln("Watch routine requested to stop")
 			break loop
 		case event := <-c.watcher.Event:
-			c.Logger.Println("Received event for file", event.Name)
+			c.Logger.Infoln("Received event for file", event.Name)
 			if err := c.handleCoreFile(event.Name); err != nil {
-				c.Logger.Println("Error handling core file:", err)
+				c.Logger.Infoln("Error handling core file:", err)
 			}
 		case error := <-c.watcher.Error:
-			c.Logger.Println("Watcher error:", error)
+			c.Logger.Infoln("Watcher error:", error)
 			// possibly restart?
 		}
 	}
 
 	c.doneChan <- true
-	c.Logger.Println("Stopped watch for dir activity")
+	c.Logger.Infoln("Stopped watch for dir activity")
 }
 
 func (c *Crashcorder) handleCoreFile(name string) error {
-	c.Logger.Println("Handling core file", name)
+	c.Logger.Infoln("Handling core file", name)
 	coreinfo, err := c.extractCoreFileInfo(name)
 	if err != nil {
 		return err
@@ -186,7 +186,7 @@ func (c *Crashcorder) extractCoreFileInfo(name string) (coreInfo map[string]stri
 	for i, str := range c.Config.CorePatternTokens {
 		reason, ok := PatternTokenToString[str]
 		if !ok {
-			fmt.Println("Unknown token in core pattern", str)
+			c.Logger.Warningln("Unknown token in core pattern", str)
 		}
 		coreInfo[reason] = toks[i]
 	}

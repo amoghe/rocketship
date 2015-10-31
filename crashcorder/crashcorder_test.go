@@ -1,16 +1,16 @@
 package crashcorder
 
 import (
-	"testing"
-
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"testing"
 
 	"rocketship/radio"
+
+	"github.com/amoghe/distillog"
 
 	. "gopkg.in/check.v1"
 )
@@ -44,7 +44,7 @@ func (s *TestSuite) TestHandleCoreFile(c *C) {
 	testAddr := testServer.Listener.Addr()
 	radioAddr, err := net.ResolveTCPAddr(testAddr.Network(), testAddr.String())
 
-	cc := New(Config{[]string{"%e", "%p", "%s", "%t"}, "/tmp", *radioAddr}, log.New(ioutil.Discard, "", log.LstdFlags))
+	cc := New(Config{[]string{"%e", "%p", "%s", "%t"}, "/tmp", *radioAddr}, distillog.NewNullLogger(""))
 	err = cc.handleCoreFile("foo_bar_baz_quz")
 	c.Assert(err, IsNil)
 
