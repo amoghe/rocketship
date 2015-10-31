@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"rocketship/regulog"
+	"github.com/amoghe/distillog"
 
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
@@ -32,11 +32,11 @@ const (
 type Controller struct {
 	db   *gorm.DB
 	mux  *web.Mux
-	log  regulog.Logger
+	log  distillog.Logger
 	lock sync.Mutex
 }
 
-func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
+func NewController(db *gorm.DB, logger distillog.Logger) *Controller {
 
 	c := Controller{
 		db:  db,

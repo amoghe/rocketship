@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"rocketship/commander/modules"
-	"rocketship/regulog"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 )
@@ -14,10 +14,10 @@ type Commander struct {
 	controllers []modules.Controller
 	mux         *web.Mux
 	db          *gorm.DB
-	log         regulog.Logger
+	log         distillog.Logger
 }
 
-func New(db *gorm.DB, log regulog.Logger) *Commander {
+func New(db *gorm.DB, log distillog.Logger) *Commander {
 	c := Commander{
 		controllers: modules.LoadAll(db, log),
 		db:          db,

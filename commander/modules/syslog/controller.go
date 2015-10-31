@@ -8,11 +8,11 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 
 	"rocketship/commander/modules/host"
-	"rocketship/regulog"
 )
 
 const (
@@ -23,10 +23,10 @@ const (
 type Controller struct {
 	db  *gorm.DB
 	mux *web.Mux
-	log regulog.Logger
+	log distillog.Logger
 }
 
-func NewController(db *gorm.DB, log regulog.Logger) *Controller {
+func NewController(db *gorm.DB, log distillog.Logger) *Controller {
 	// TODO: endpoints to en/disable the syslog daemon.
 	return &Controller{db: db, mux: web.New(), log: log}
 }

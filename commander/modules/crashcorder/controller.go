@@ -9,13 +9,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 
 	"rocketship/commander/modules/host"
 	"rocketship/commander/modules/radio"
 	"rocketship/crashcorder"
-	"rocketship/regulog"
 )
 
 const (
@@ -30,10 +30,10 @@ const (
 )
 
 type Controller struct {
-	log regulog.Logger
+	log distillog.Logger
 }
 
-func NewController(_ *gorm.DB, log regulog.Logger) *Controller {
+func NewController(_ *gorm.DB, log distillog.Logger) *Controller {
 	return &Controller{log: log}
 }
 

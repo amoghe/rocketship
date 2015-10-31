@@ -12,8 +12,7 @@ import (
 	"text/template"
 	"time"
 
-	"rocketship/regulog"
-
+	"github.com/amoghe/distillog"
 	"github.com/amoghe/go-upstart"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
@@ -42,11 +41,11 @@ const (
 type Controller struct {
 	db   *gorm.DB
 	mux  *web.Mux
-	log  regulog.Logger
+	log  distillog.Logger
 	lock sync.Mutex
 }
 
-func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
+func NewController(db *gorm.DB, logger distillog.Logger) *Controller {
 	c := Controller{
 		mux: web.New(),
 		db:  db,

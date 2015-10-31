@@ -1,16 +1,16 @@
 package modules
 
 import (
+	"distillog"
 	"net/http"
 
-	"rocketship/commander/modules/bootbanks"
+	"rocketship/commander/modules/bootbank"
 	"rocketship/commander/modules/crashcorder"
 	"rocketship/commander/modules/host"
 	"rocketship/commander/modules/radio"
 	"rocketship/commander/modules/ssh"
 	"rocketship/commander/modules/stats"
 	"rocketship/commander/modules/syslog"
-	"rocketship/regulog"
 
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
@@ -24,7 +24,7 @@ type Controller interface {
 	SeedDB()             // SeedDB tells the controller to seed the db with any state that is essential to it.
 }
 
-func LoadAll(db *gorm.DB, log regulog.Logger) []Controller {
+func LoadAll(db *gorm.DB, log distillog.Logger) []Controller {
 	return []Controller{
 		crashcorder.NewController(db, log),
 		host.NewController(db, log),

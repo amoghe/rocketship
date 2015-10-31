@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"rocketship/commander"
-	"rocketship/regulog"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/amoghe/distillog"
 	"github.com/facebookgo/httpdown"
 	"github.com/jinzhu/gorm"
 
@@ -30,7 +30,7 @@ func main() {
 		db  gorm.DB
 		err error
 
-		logger   = regulog.New("commander")
+		logger   = distillog.NewStdoutLogger("commander")
 		sigChan  = make(chan os.Signal)
 		dbOpened = false
 	)

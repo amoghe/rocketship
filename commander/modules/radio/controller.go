@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/amoghe/distillog"
 	"github.com/amoghe/go-upstart"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 
 	"rocketship/commander/modules/host"
 	"rocketship/radio"
-	"rocketship/regulog"
 )
 
 const (
@@ -41,11 +41,11 @@ const (
 type Controller struct {
 	db   *gorm.DB
 	mux  *web.Mux
-	log  regulog.Logger
+	log  distillog.Logger
 	lock sync.Mutex
 }
 
-func NewController(db *gorm.DB, logger regulog.Logger) *Controller {
+func NewController(db *gorm.DB, logger distillog.Logger) *Controller {
 	ctrl := &Controller{db: db, mux: web.New(), log: logger}
 
 	ctrl.mux.Get(EInfoRecipients, ctrl.GetInfoRecipients)
