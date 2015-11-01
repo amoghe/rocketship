@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 	"rocketship/commander"
-	"rocketship/regulog"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -21,7 +21,7 @@ func main() {
 	kingpin.Version("0.0.1")
 	kingpin.Parse()
 
-	logger := regulog.New("preflight")
+	logger := distillog.NewStderrLogger("preflight")
 
 	die := func(err error) {
 		logger.Errorln("Exiting due to:", err.Error())
