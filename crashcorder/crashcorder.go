@@ -2,7 +2,6 @@ package crashcorder
 
 import (
 	"bytes"
-	"distillog"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -12,6 +11,7 @@ import (
 
 	"rocketship/radio"
 
+	"github.com/amoghe/distillog"
 	"golang.org/x/exp/inotify"
 )
 
