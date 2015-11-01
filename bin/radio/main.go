@@ -45,11 +45,11 @@ func main() {
 	setupLogger := func() {
 		switch *logTo {
 		case "syslog":
-			logger = distillog.NewSyslogLogger("commander")
+			logger = distillog.NewSyslogLogger("radio")
 		case "stdout":
-			logger = distillog.NewStdoutLogger("commander")
+			logger = distillog.NewStdoutLogger("radio")
 		case "stderr":
-			logger = distillog.NewStderrLogger("commander")
+			logger = distillog.NewStderrLogger("radio")
 		default:
 			die(fmt.Errorf("Unknown log output specified type"))
 		}
