@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/mail"
 	"reflect"
+
+	. "gopkg.in/check.v1"
 )
 
 var testRadio = Radio{
@@ -35,40 +37,47 @@ var testRadio = Radio{
 	},
 }
 
-func TestParseInvalidMessageFromRequest(t *testing.T) {
+func Test(t *testing.T) {
+	Suite(&TestSuite{})
+	TestingT(t)
+}
+
+type TestSuite struct{}
+
+func (t *TestSuite) TestParseInvalidMessageFromRequest(c *C) {
 	reqbody, err := json.Marshal(MessageRequest{Severity: "BAD", Subject: "sub", Body: "foobar"})
 	if err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
 
 	testreq, err := http.NewRequest("POST", "/dontcare", bytes.NewBuffer(reqbody))
 	if err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
 
 	_, err = testRadio.parseMessageFromRequest(testreq)
 	if err == nil {
-		t.Error("Expected parse error")
+		c.Error("Expected parse error")
 	}
 }
 
-func TestParseValidMessageFromRequest(t *testing.T) {
+func (t *TestSuite) TestParseValidMessageFromRequest(c *C) {
 	reqbody, err := json.Marshal(MessageRequest{Severity: "INFO", Subject: "sub", Body: "foobar"})
 	if err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
 
 	testreq, err := http.NewRequest("POST", "/dontcare", bytes.NewBuffer(reqbody))
 	if err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
 
 	msg, err := testRadio.parseMessageFromRequest(testreq)
 	if err != nil {
-		t.Error("Unexpected parse error")
+		c.Error("Unexpected parse error")
 	}
 
 	if !reflect.DeepEqual(msg.To, testRadio.config.EmailConfig.InfoRecipients) {
-		t.Error("Expected 'To' to be the same as 'info recipients'")
+		c.Error("Expected 'To' to be the same as 'info recipients'")
 	}
 }
