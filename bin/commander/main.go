@@ -22,15 +22,16 @@ var (
 	ListenPort = kingpin.Flag("port", "Listen port.").Default("8888").Uint64()
 	DbType     = kingpin.Flag("db-type", "DB type to connect").Default("sqlite3").String()
 	DbDSN      = kingpin.Flag("db-dsn", "DB DSN to connect").Default("/tmp/commander").String()
+	LogType    = kingpin.Flag("log-to", "Log output").Default("stdout").Enum("syslog", "stdout", "stderr")
 )
 
 func main() {
 	var (
-		svr httpdown.Server
-		db  gorm.DB
-		err error
+		svr    httpdown.Server
+		db     gorm.DB
+		err    error
+		logger distillog.Logger
 
-		logger   = distillog.NewStdoutLogger("commander")
 		sigChan  = make(chan os.Signal)
 		dbOpened = false
 	)
@@ -40,7 +41,20 @@ func main() {
 
 	die := func(err error) {
 		logger.Errorln("Exiting due to:", err.Error())
-		os.Exit(1)
+		os.Exit(2)
+	}
+
+	setupLogger := func() {
+		switch *LogType {
+		case "syslog":
+			logger = distillog.NewSyslogLogger("commander")
+		case "stdout":
+			logger = distillog.NewStdoutLogger("commander")
+		case "stderr":
+			logger = distillog.NewStderrLogger("commander")
+		default:
+			die(fmt.Errorf("Unknown log output specified type"))
+		}
 	}
 
 	reconnectDB := func() {
@@ -100,6 +114,8 @@ func main() {
 		}
 
 	}
+
+	setupLogger()
 
 	startCommander()
 

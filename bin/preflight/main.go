@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"rocketship/commander"
 
@@ -14,7 +15,8 @@ import (
 var (
 	DbType   = kingpin.Flag("db-type", "DB type to connect").Default("sqlite3").String()
 	DbDSN    = kingpin.Flag("db-dsn", "DB DSN to connect").Default("/tmp/commander").String()
-	seedOnly = kingpin.Flag("seed-only", "Only migrate+seed the database, do not rewrite files").Default("false").Bool()
+	SeedOnly = kingpin.Flag("seed-only", "Only migrate+seed the database, do not rewrite files").Default("false").Bool()
+	LogTo    = kingpin.Flag("log-to", "Log output").Default("stdout").Enum("syslog", "stdout", "stderr")
 )
 
 func main() {
@@ -26,6 +28,17 @@ func main() {
 	die := func(err error) {
 		logger.Errorln("Exiting due to:", err.Error())
 		os.Exit(1)
+	}
+
+	switch *LogTo {
+	case "syslog":
+		logger = distillog.NewSyslogLogger("commander")
+	case "stdout":
+		logger = distillog.NewStdoutLogger("commander")
+	case "stderr":
+		logger = distillog.NewStderrLogger("commander")
+	default:
+		die(fmt.Errorf("Unknown log output specified type"))
 	}
 
 	logger.Infoln("Connecting to", *DbType, "using DSN", *DbDSN)
@@ -42,7 +55,7 @@ func main() {
 	logger.Infoln("<2> Seeding database")
 	cmdr.SeedDB()
 
-	if *seedOnly == true {
+	if *SeedOnly == true {
 		logger.Infoln("Exiting early due to seed-only")
 		return
 	}

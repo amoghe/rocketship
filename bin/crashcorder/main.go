@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -19,6 +20,7 @@ const (
 
 var (
 	cfgFile = kingpin.Flag("conf", "Config file path.").Required().ExistingFile()
+	logTo   = kingpin.Flag("log-to", "Log output").Default("stdout").Enum("syslog", "stdout", "stderr")
 )
 
 func main() {
@@ -35,6 +37,19 @@ func main() {
 	die := func(err error) {
 		logger.Errorln("Exiting due to:", err.Error())
 		os.Exit(2)
+	}
+
+	setupLogger := func() {
+		switch *logTo {
+		case "syslog":
+			logger = distillog.NewSyslogLogger("commander")
+		case "stdout":
+			logger = distillog.NewStdoutLogger("commander")
+		case "stderr":
+			logger = distillog.NewStderrLogger("commander")
+		default:
+			die(fmt.Errorf("Unknown log output specified type"))
+		}
 	}
 
 	parseConfig := func() (cfg crashcorder.Config) {
@@ -88,6 +103,9 @@ func main() {
 		}
 
 	}
+
+	// initialize logging
+	setupLogger()
 
 	// start the crashcorder
 	startCrashcorder()

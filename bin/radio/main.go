@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +13,7 @@ import (
 	"rocketship/radio"
 
 	"github.com/alecthomas/kingpin"
+	"github.com/amoghe/distillog"
 	"github.com/facebookgo/httpdown"
 )
 
@@ -23,13 +23,14 @@ const (
 
 var (
 	cfgFile = kingpin.Flag("conf", "Config file path.").Required().ExistingFile()
+	logTo   = kingpin.Flag("log-to", "Log output").Default("stdout").Enum("syslog", "stdout", "stderr")
 )
 
 func main() {
 	var (
 		radioserver httpdown.Server
+		logger      distillog.Logger
 
-		logger  = log.New(os.Stderr, "", log.LstdFlags)
 		sigChan = make(chan os.Signal)
 	)
 
@@ -37,12 +38,26 @@ func main() {
 	kingpin.Parse()
 
 	die := func(err error) {
-		logger.Fatalln("Exiting due to:", err.Error())
+		logger.Errorln("Exiting due to:", err.Error())
+		os.Exit(2)
+	}
+
+	setupLogger := func() {
+		switch *logTo {
+		case "syslog":
+			logger = distillog.NewSyslogLogger("commander")
+		case "stdout":
+			logger = distillog.NewStdoutLogger("commander")
+		case "stderr":
+			logger = distillog.NewStderrLogger("commander")
+		default:
+			die(fmt.Errorf("Unknown log output specified type"))
+		}
 	}
 
 	parseConfig := func() (cfg radio.Config) {
 		// read config file
-		logger.Println("Reading config file from", *cfgFile)
+		logger.Infoln("Reading config file from", *cfgFile)
 		fileBytes, err := ioutil.ReadFile(*cfgFile)
 		if err != nil {
 			die(fmt.Errorf("Failed to read file: %s", err))
@@ -62,7 +77,7 @@ func main() {
 		addr := fmt.Sprintf("127.0.0.1:%d", conf.ProcessConfig.ListenPort)
 
 		// Start an http server with this radio app
-		logger.Println("Starting radio on ", addr)
+		logger.Infoln("Starting radio on ", addr)
 		var err error
 		radioserver, err = httpdown.HTTP{
 			StopTimeout: 5 * time.Second,
@@ -75,24 +90,24 @@ func main() {
 
 	restartRadio := func() {
 		if radioserver != nil {
-			logger.Println("Stopping radio server")
+			logger.Infoln("Stopping radio server")
 			radioserver.Stop()
 		}
 		startRadio()
 	}
 
 	mainLoop := func() {
-		logger.Println("Initializing signal handler")
+		logger.Infoln("Initializing signal handler")
 		signal.Notify(sigChan, syscall.SIGINT)
 
-		logger.Println("Starting main signal handler loop")
+		logger.Infoln("Starting main signal handler loop")
 		for sig := range sigChan {
 			switch sig {
 			case syscall.SIGHUP:
-				logger.Println("Received SIGHUP - reloading")
+				logger.Infoln("Received SIGHUP - reloading")
 				restartRadio()
 			case syscall.SIGINT, syscall.SIGTERM:
-				logger.Println("Received", sig, "- terminating")
+				logger.Infoln("Received", sig, "- terminating")
 				radioserver.Stop()
 				return
 			}
@@ -100,9 +115,11 @@ func main() {
 
 	}
 
+	setupLogger()
+
 	startRadio()
 
 	mainLoop()
 
-	logger.Println("Radio server exited")
+	logger.Infoln("Radio server exited")
 }
