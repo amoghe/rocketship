@@ -169,3 +169,13 @@ namespace :clean do
 	desc 'Clean everything'
 	task :full => [:allbins, :copiedbins, :debootstrap_rootfs, :image, :disk]
 end
+
+namespace :test do
+
+	desc 'all go code'
+	task :go => "build:allbins" do
+		ROCKETSHIP_COMPONENTS.reject { |c| c == "preflight" }.each do |comp|
+			sh("cd #{comp} && go test ./... -check.v")
+		end
+	end
+end
