@@ -45,6 +45,7 @@ var (
 		// Groups needed by aerodrome services
 		"radio":       1001,
 		"crashcorder": 1002,
+		"prometheus":  1003,
 
 		"nogroup": 65534,
 	}

@@ -128,7 +128,6 @@ var (
 		},
 			Uid: 1001,
 			Gid: defaultGroups["radio"]},
-		// write config file
 		{User: User{
 			Name:    "crashcorder",
 			Comment: "crash reporter daemon",
@@ -136,6 +135,14 @@ var (
 		},
 			Uid: 1002,
 			Gid: defaultGroups["crashcorder"],
+		},
+		{User: User{
+			Name:    "prometheus",
+			Comment: "statistics collection daemon",
+			Homedir: "/tmp",
+		},
+			Uid: 1003,
+			Gid: defaultGroups["prometheus"],
 		},
 	}
 )
