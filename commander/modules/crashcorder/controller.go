@@ -51,12 +51,14 @@ func (c *Controller) RoutePrefix() string {
 func (c *Controller) RewriteFiles() error {
 	c.log.Infoln("Rewriting crashcorder config file")
 
+	// Ensure cores dir
+	if err := os.MkdirAll(CoresDirPath, 0666); err != nil {
+		return err
+	}
+
 	// ensure crashcorder dir
-	if _, err := os.Stat(CrashcorderConfDir); os.IsNotExist(err) {
-		err = os.Mkdir(CrashcorderConfDir, 0755)
-		if err != nil {
-			return err
-		}
+	if err := os.MkdirAll(CrashcorderConfDir, 0755); err != nil {
+		return err
 	}
 
 	// write config file
