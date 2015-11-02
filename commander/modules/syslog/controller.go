@@ -2,7 +2,6 @@ package syslog
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"text/template"
@@ -11,8 +10,6 @@ import (
 	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
-
-	"rocketship/commander/modules/host"
 )
 
 const (
@@ -49,11 +46,13 @@ func (c *Controller) RewriteFiles() error {
 	c.log.Infoln("Rewriting syslog configuration files")
 	contents, err := c.syslogConfFileContents()
 	if err != nil {
+		c.log.Errorln("Failed to generate syslog config:", err)
 		return err
 	}
 
 	err = ioutil.WriteFile("/etc/rsyslog.conf", contents, 0644)
 	if err != nil {
+		c.log.Errorln("Failed to write syslog conf file:", err)
 		return err
 	}
 
@@ -63,9 +62,9 @@ func (c *Controller) RewriteFiles() error {
 func (c *Controller) syslogConfFileContents() ([]byte, error) {
 
 	type _templateData struct {
-		GenTime string
-		Uid     int
-		Gid     int
+		GenTime   string
+		Username  string
+		Groupname string
 	}
 
 	tmpl, err := template.New("syslog.conf").Parse(templateStr)
@@ -73,15 +72,10 @@ func (c *Controller) syslogConfFileContents() ([]byte, error) {
 		return []byte{}, err
 	}
 
-	syslogUser, err := host.GetSystemUser("syslog")
-	if err != nil {
-		return []byte{}, fmt.Errorf("Unable to lookup details for syslog user")
-	}
-
 	syslogData := _templateData{
-		GenTime: time.Now().String(),
-		Uid:     syslogUser.Uid,
-		Gid:     syslogUser.Gid,
+		GenTime:   time.Now().String(),
+		Username:  "syslog",
+		Groupname: "syslog",
 	}
 
 	retbuf := &bytes.Buffer{}

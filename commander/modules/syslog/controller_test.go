@@ -24,10 +24,10 @@ func (ts *SyslogTestSuite) TestSyslogConfFile(c *C) {
 
 	// these are lines that are populated by us in the template
 	expectedLines := []string{
-		"$FileOwner 101",
-		"$FileGroup 103",
-		"$PrivDropToUser 101",
-		"$PrivDropToGroup 103",
+		"$FileOwner syslog",
+		"$FileGroup syslog",
+		"$PrivDropToUser syslog",
+		"$PrivDropToGroup syslog",
 	}
 
 	contents, err := ctrl.syslogConfFileContents()

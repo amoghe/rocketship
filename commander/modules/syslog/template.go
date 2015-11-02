@@ -46,13 +46,13 @@ $RepeatedMsgReduction on
 #
 # Set the default permissions for all log files.
 #
-$FileOwner {{ .Uid }}
-$FileGroup {{ .Gid }}
+$FileOwner {{ .Username }}
+$FileGroup {{ .Groupname }}
 $FileCreateMode 0644
 $DirCreateMode 0755
 $Umask 0022
-$PrivDropToUser {{ .Uid }}
-$PrivDropToGroup {{ .Gid }}
+$PrivDropToUser {{ .Username }}
+$PrivDropToGroup {{ .Groupname }}
 
 #
 # Where to place spool files
