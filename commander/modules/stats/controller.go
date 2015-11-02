@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"rocketship/commander/modules/host"
 
 	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
@@ -20,6 +23,8 @@ const (
 	ECpu        = URLPrefix + "/cpu"
 	EMemoryFree = URLPrefix + "/memory/free"
 
+	PrometheusUser     = "prometheus"
+	PrometheusDataDir  = "/config/prometheus"
 	PrometheusConfPath = "/opt/prometheus/prometheus.yml"
 )
 
@@ -66,12 +71,24 @@ func (c *Controller) RewritePrometheusFile() error {
 
 	contents, err := c.prometheusFileContents()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to generate prometheus config: %s", err)
 	}
-
 	err = ioutil.WriteFile(PrometheusConfPath, contents, 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to write prometheus config: %s", err)
+	}
+
+	// Ensure that the prometheus data dir exists with the sufficient permissions for
+	// the process to read+write to it.
+	pUser, err := host.GetSystemUser(PrometheusUser)
+	if err != nil {
+		return fmt.Errorf("Failed to get prometheus user from host module: %s", err)
+	}
+	if err := os.MkdirAll(PrometheusDataDir, 0644); err != nil {
+		return fmt.Errorf("Failed to ensure prometheus data dir: %s", err)
+	}
+	if err := os.Chown(PrometheusDataDir, pUser.Uid, pUser.Gid); err != nil {
+		return fmt.Errorf("Failed to set ownership on prometheus data dir: %s", err)
 	}
 
 	return nil
