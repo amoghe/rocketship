@@ -22,8 +22,7 @@ class DiskBuilder < BaseBuilder
 	FS_TYPE                   = 'ext4'
 
 	GRUB_ARCHITECTURE         = 'i386-pc' # TODO: infer this?
-	GRUB_HIDDEN_TIMEOUT       = 5
-	GRUB_MENU_TIMEOUT         = 10
+	GRUB_TIMEOUT              = 5
 
 	GRUB_PARTITION_LABEL      = 'GRUB'
 	CONFIG_PARTITION_LABEL    = 'CONFIG'
@@ -194,23 +193,31 @@ class DiskBuilder < BaseBuilder
 					execute!("cp #{f.path} #{load_cfg_filepath}")
 				end
 
+				# these shouldn't really be controlled by the "verbose" flag, but...
+				timeout_verbose = verbose ? "--verbose" : ""
+				timeout_style   = verbose ? "menu" : "hidden"
+
 				# Setup grub.cfg
 				info("creating grub.cfg")
 				Tempfile.open('grub.conf') do |f|
 					f.puts('set default=0')  # TODO ?
-					f.puts("set timeout=#{GRUB_MENU_TIMEOUT}")
 					f.puts('')
 
 					f.puts('set menu_color_normal=white/black')
 					f.puts('set menu_color_highlight=black/light-gray')
 					f.puts('')
 
-					f.puts("if sleep --verbose --interruptible #{GRUB_HIDDEN_TIMEOUT} ; then")
-					f.puts('  echo "Loading ..."')
+					f.puts("# Try the timeout_style feature, fallback to simulated countdown")
+					f.puts("if [ x\$feature_timeout_style = xy ] ; then")
+					f.puts("  set timeout_style=hidden")
+					f.puts("  set timeout=#{GRUB_TIMEOUT}")
+					f.puts("elif sleep #{timeout_verbose} --interruptible #{GRUB_TIMEOUT} ; then")
+					f.puts('  echo "Booting ..."')
 					f.puts('  set timeout=0')
 					f.puts('fi')
+					f.puts('')
 
-					PARTITIONS.select { |part| part.type == :os }.each do |part|
+					PARTITIONS.select { |part| part.type == :os }.each_with_index do |idx, part|
 
 						label = part.label
 						size  = part.size
@@ -219,7 +226,7 @@ class DiskBuilder < BaseBuilder
 						k_cmdline_opts_debug  = [ 'rw', 'debug', 'console=tty0' ].join(' ')
 
 						# The "Normal" entry
-						f.puts ('# 0')
+						f.puts ("# #{idx}")
 						f.puts("menuentry \"ROCKETSHIP_#{label}\" {") # TODO (ver) name?
 						f.puts('  insmod ext2') # also does ext{2,3,4}
 						#f.puts('  insmod gzio')
@@ -230,7 +237,7 @@ class DiskBuilder < BaseBuilder
 						f.puts('}')
 						f.puts('')
 
-						f.puts ('# 1')
+						f.puts ("# #{idx+1}")
 						f.puts("menuentry \"ROCKETSHIP_#{label}_DEBUG\" {") # TODO (ver) name?
 						f.puts('  insmod ext2') # also does ext{2,3,4}
 						#f.puts('  insmod gzio')
@@ -239,6 +246,7 @@ class DiskBuilder < BaseBuilder
 						f.puts("  linux   /vmlinuz root=LABEL=#{label} #{k_cmdline_opts_debug}")
 						f.puts("  initrd  /initrd.img")
 						f.puts('}')
+						f.puts('')
 					end
 
 					f.sync; f.fsync # flush from ruby buffers, then os buffers
