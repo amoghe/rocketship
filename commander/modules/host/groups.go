@@ -35,12 +35,12 @@ var (
 		"staff":   50,
 
 		"libuuid":    101,
-		"crontab":    102, // TODO: delete me?
-		"syslog":     103,
+		"netdev":     102,
+		"crontab":    103, // TODO: delete me?
+		"messagebus": 104,
+		"ssh":        105,
+		"syslog":     106,
 		"fuse":       104,
-		"messagebus": 105,
-		"ssh":        108,
-		"netdev":     110,
 
 		// Groups needed by aerodrome services
 		"radio":       1001,
