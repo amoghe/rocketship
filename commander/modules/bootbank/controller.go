@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -21,7 +22,7 @@ import (
 )
 
 const (
-	URLPrefix = "/system"
+	URLPrefix = "/boot"
 
 	KernelCommandlineFile = "/proc/cmdline"
 
@@ -32,7 +33,7 @@ const (
 
 	ImageVersionFile = "/etc/rocketship_version"
 
-	EBootbanks  = URLPrefix + "/bootbanks"
+	EBootbanks  = URLPrefix + "/banks"
 	EBootbankID = EBootbanks + "/:id"
 )
 
@@ -48,6 +49,8 @@ func NewController(db *gorm.DB, logger distillog.Logger) *Controller {
 
 	ctrl.mux.Get(EBootbanks, ctrl.GetBootbanks)
 	ctrl.mux.Get(EBootbankID, ctrl.GetBootbankDetails)
+	ctrl.mux.Put(EBootbankID+"/image", ctrl.UploadImageFile)
+	ctrl.mux.Put(EBootbankID+"/bootable", ctrl.MarkBootable)
 
 	return ctrl
 }
@@ -74,7 +77,7 @@ func (c *Controller) RewriteFiles() error { return nil }
 // Response Entities
 //
 
-type VersionDetails struct {
+type BootbankDetails struct {
 	Version string
 	Active  bool
 }
@@ -99,12 +102,12 @@ func (c *Controller) GetBootbankDetails(ctx web.C, w http.ResponseWriter, r *htt
 	}
 
 	var (
+		ret     BootbankDetails
 		version string
 		err     error
-		ret     VersionDetails
 	)
 
-	readVersionFileFrom := func(dir string) error {
+	readVersionFileFromDir := func(dir string) error {
 		if vbytes, err := ioutil.ReadFile(dir + "/" + ImageVersionFile); err != nil {
 			return err
 		} else {
@@ -114,11 +117,11 @@ func (c *Controller) GetBootbankDetails(ctx web.C, w http.ResponseWriter, r *htt
 	}
 
 	if bbLabel == c.currentBootbankLabel() {
-		err = readVersionFileFrom("/")
-		ret = VersionDetails{Version: version, Active: true}
+		err = readVersionFileFromDir("/")
+		ret = BootbankDetails{Version: version, Active: true}
 	} else {
-		err = withMountedPartition(c.otherBootbankLabel(), readVersionFileFrom)
-		ret = VersionDetails{Version: version, Active: false}
+		err = withMountedPartition(c.otherBootbankLabel(), true, c.log, readVersionFileFromDir)
+		ret = BootbankDetails{Version: version, Active: false}
 	}
 	if err != nil {
 		jsonError(fmt.Errorf("Failed to read version file: %s", err), w)
@@ -131,6 +134,45 @@ func (c *Controller) GetBootbankDetails(ctx web.C, w http.ResponseWriter, r *htt
 	return
 }
 
+func (c *Controller) UploadImageFile(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	if ctx.URLParams["id"] == c.currentBootbankLabel() {
+		jsonError(fmt.Errorf("Cannot upload image into currently booted bank"), w)
+		return
+	}
+
+	file, _, err := r.FormFile("image")
+	if err != nil {
+		jsonError(err, w)
+		return
+	}
+
+	err = c.loadImageStreamIntoBootbank(c.otherBootbankLabel(), file)
+	if err != nil {
+		jsonError(err, w)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
+func (c *Controller) MarkBootable(ctx web.C, w http.ResponseWriter, r *http.Request) {
+	bbLabel := ctx.URLParams["id"]
+	if bbLabel != Bootbank1 && bbLabel != Bootbank2 {
+		jsonError(fmt.Errorf("Invalid bootbank (%s) specified", bbLabel), w)
+		return
+	}
+
+	c.log.Infof("Marking bootbank %s as bootable (for next boot)", bbLabel)
+	if err := c.makeBootbankBootable(bbLabel); err != nil {
+		jsonError(fmt.Errorf("Unable to mark %s bootable: %s", bbLabel, err), w)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
 func (c *Controller) currentBootbankLabel() string {
 	b, err := ioutil.ReadFile(KernelCommandlineFile)
 	if err != nil {
@@ -140,12 +182,17 @@ func (c *Controller) currentBootbankLabel() string {
 	}
 
 	for _, token := range strings.Split(string(b), " ") {
-		if strings.HasPrefix(token, "LABEL") {
-			return strings.Split(token, "=")[1]
+		if strings.HasPrefix(token, "root=LABEL") { // root=LABEL=BOOTBANK1
+			t := strings.Split(token, "=")
+			if len(t) != 3 {
+				c.log.Warningf("Cannot infer root label (token: %s). Assuming %s", token, Bootbank1)
+				return Bootbank1
+			}
+			return t[2]
 		}
 	}
 
-	c.log.Infoln("Unable to determine bootbank (no LABEL found on cmdline). Assuming", Bootbank1)
+	c.log.Infof("Unable to determine bootbank (no LABEL found on cmdline: %s). Assuming %s", string(b), Bootbank1)
 	return Bootbank1
 }
 
@@ -157,7 +204,46 @@ func (c *Controller) otherBootbankLabel() string {
 	}
 }
 
-func (c *Controller) loadImageIntoBootbank(banklabel string, imgFilePath string) error {
+func (c *Controller) loadImageStreamIntoBootbank(banklabel string, stream io.Reader) error {
+
+	unpackImageIntoDir := func(dirname string) error {
+		cmd := exec.Command("tar",
+			"--gunzip",
+			"--extract",
+			"--file=-",               // read from the file we put on its stdin
+			"--preserve-permissions", // Our job is only to load dir
+			"--numeric-owner",        // Our job is only to load dir
+			"-C",
+			dirname,
+			".",
+		)
+
+		cmd.Stdin = stream
+
+		c.log.Infoln("Unpacking image into bootbank", banklabel)
+		c.log.Debugln("Running: ", strings.Join(cmd.Args, " "))
+		if output, err := cmd.CombinedOutput(); err != nil {
+			c.log.Errorf("Failed to unpack uploaded system image (%T):%s", err, err)
+			c.log.Errorln("Combined stdout/stderr output follows:")
+			for _, line := range strings.Split(string(output), "\n") {
+				//c.log.Errorln(line)
+				_ = line
+			}
+			return err
+		}
+
+		c.log.Infoln("Unpack completed succesfully")
+		return nil
+	}
+
+	if banklabel == c.currentBootbankLabel() {
+		return fmt.Errorf("Bootbank is currently active")
+	}
+
+	return withMountedPartition("/dev/disk/by-label/"+banklabel, false, c.log, unpackImageIntoDir)
+}
+
+func (c *Controller) loadImageFileIntoBootbank(banklabel string, imgFilePath string) error {
 
 	unpackImageIntoDir := func(dirname string) error {
 		cmd := exec.Command("tar",
@@ -185,7 +271,7 @@ func (c *Controller) loadImageIntoBootbank(banklabel string, imgFilePath string)
 		return fmt.Errorf("Bootbank is currently active")
 	}
 
-	if err := withMountedPartition("/dev/disk/by-label/"+banklabel, unpackImageIntoDir); err != nil {
+	if err := withMountedPartition("/dev/disk/by-label/"+banklabel, false, c.log, unpackImageIntoDir); err != nil {
 		return err
 	}
 
@@ -200,20 +286,25 @@ func (c *Controller) makeBootbankBootable(banklabel string) error {
 		grubDir := bootDir + "/grub"
 		grubFilePath := grubDir + "/grub.cfg"
 
-		if err := os.MkdirAll(grubDir, 0755); err != nil {
+		err := os.MkdirAll(grubDir, 0755)
+		if err != nil {
 			return fmt.Errorf("Failed to ensure grub dir: %s", err)
 		}
-		if fileContents, err := c.grubConfContents(banklabel); err != nil {
+
+		fileContents, err := c.grubConfContents(banklabel)
+		if err != nil {
 			return fmt.Errorf("Failed to generate grub.conf contents: %s", err)
-		} else {
-			if err := ioutil.WriteFile(grubFilePath, []byte(fileContents), 0444); err != nil {
-				return fmt.Errorf("Failed to write grub config: %s", err)
-			}
 		}
+
+		err = ioutil.WriteFile(grubFilePath, []byte(fileContents), 0444)
+		if err != nil {
+			return fmt.Errorf("Failed to write grub config: %s", err)
+		}
+
 		return nil
 	}
 
-	return withMountedPartition("/dev/disk/by-label/"+GrubPartitionlabel, writeGrubFile)
+	return withMountedPartition("/dev/disk/by-label/"+GrubPartitionlabel, false, c.log, writeGrubFile)
 }
 
 func (c *Controller) grubConfContents(bootableBankLabel string) (string, error) {
@@ -264,16 +355,27 @@ func (c *Controller) grubConfContents(bootableBankLabel string) (string, error) 
 	return output.String(), nil
 }
 
-func withMountedPartition(partition string, f func(string) error) error {
+func withMountedPartition(partition string, readonly bool, log distillog.Logger, f func(string) error) error {
 	tempDir, err := ioutil.TempDir(os.TempDir(), "tempMountedPartition")
 	if err != nil {
 		return err
 	}
 
-	if err := syscall.Mount(partition, tempDir, "ext4", syscall.MS_RDONLY, ""); err != nil {
+	flags := 0
+	if readonly {
+		flags |= syscall.MS_RDONLY
+	}
+
+	log.Debugf("Mounting %s on %s (readonly: %t) (flags: %X)", partition, tempDir, readonly, uintptr(flags))
+	if err := syscall.Mount(partition, tempDir, "ext4", uintptr(flags), ""); err != nil {
+		log.Errorln("mount syscall failed:", err)
 		return err
 	}
-	defer syscall.Unmount(tempDir, 0)
+	defer func() {
+		log.Debugf("Unmounting %s (from %s)", partition, tempDir)
+		syscall.Unmount(tempDir, 0)
+		os.RemoveAll(tempDir)
+	}()
 
 	return f(tempDir)
 }
