@@ -20,6 +20,7 @@ import (
 
 var (
 	ListenPort = kingpin.Flag("port", "Listen port.").Default("8888").Uint64()
+	ListenAddr = kingpin.Flag("interface", "Listen interface").Default("127.0.0.1").String()
 	DbType     = kingpin.Flag("db-type", "DB type to connect").Default("sqlite3").String()
 	DbDSN      = kingpin.Flag("db-dsn", "DB DSN to connect").Default("/tmp/commander").String()
 	LogType    = kingpin.Flag("log-to", "Log output").Default("stdout").Enum("syslog", "stdout", "stderr")
@@ -81,7 +82,7 @@ func main() {
 			StopTimeout: 5 * time.Second,
 			KillTimeout: 5 * time.Second,
 		}.ListenAndServe(&http.Server{
-			Addr:    fmt.Sprintf("127.0.0.1:%d", *ListenPort),
+			Addr:    fmt.Sprintf("%s:%d", *ListenAddr, *ListenPort),
 			Handler: commander.New(&db, logger),
 		})
 		if err != nil {
