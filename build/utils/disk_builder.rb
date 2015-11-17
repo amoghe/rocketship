@@ -28,9 +28,9 @@ class DiskBuilder < BaseBuilder
 	CONFIG_PARTITION_LABEL    = 'CONFIG'
 	CONFIG_PARTITION_MOUNT    = '/config'
 
-	TOTAL_DISK_SIZE_GB        = 8
+	TOTAL_DISK_SIZE_GB        = 16
 	GRUB_PARTITION_SIZE_MB    = 64
-	OS_PARTITION_SIZE_MB      = 1 * 1024 # 1 GB
+	OS_PARTITION_SIZE_MB      = 4 * 1024 # 4 GB
 	CONFIG_PARTITION_SIZE_MB  = 2 * 1024
 
 	PARTITIONS = [
@@ -73,9 +73,6 @@ class DiskBuilder < BaseBuilder
 		self.install_grub
 		self.install_system_image
 		self.create_vmdk
-	rescue => e
-		warn("Failed to build disk due to #{e}")
-		warn(e.backtrace)
 	ensure
 		self.delete_loopback_disk
 	end
@@ -125,7 +122,7 @@ class DiskBuilder < BaseBuilder
 		PARTITIONS.each_with_index do |part, index|
 			end_size += part.size
 
-			info("Creating partition #{part.label} (#{FS_TYPE})")
+			info("Creating partition #{part.label} (#{FS_TYPE}, #{part.size}MB)")
 
 			# create a partition
 			execute!("parted #{dev} mkpart primary #{FS_TYPE} #{start_size} #{end_size}MB")
@@ -217,7 +214,7 @@ class DiskBuilder < BaseBuilder
 					f.puts('fi')
 					f.puts('')
 
-					PARTITIONS.select { |part| part.type == :os }.each_with_index do |idx, part|
+					PARTITIONS.select { |part| part.type == :os }.each_with_index do |part, idx|
 
 						label = part.label
 						size  = part.size
@@ -308,6 +305,7 @@ class DiskBuilder < BaseBuilder
 					execute!("mount #{File.join('/dev/disk/by-label', label.to_s)} #{mountdir}")
 
 					execute!([ 	'tar ',
+							'--gunzip',
 							'--extract',
 							"--file=#{image_tarball_path}",
 							# Perms from the image should be retained.
