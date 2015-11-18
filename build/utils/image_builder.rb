@@ -112,8 +112,8 @@ class ImageBuilder < BaseBuilder
 			'--no-install-recommends',
 		].join(' ')
 
-		trusty_update_repo = "deb http://us.archive.ubuntu.com/ubuntu/ trusty-updates main restricted"
-		trusty_universe_repo = "deb http://us.archive.ubuntu.com/ubuntu/ trusty universe"
+		#mirror_url = "mirror://mirrors.ubuntu.com/mirrors.txt"
+		mirror_url = "ftp://ftp.iitb.ac.in/distributions/ubuntu/archives/"
 
 		chroot_cmds = [
 			"mkdir -p #{DiskBuilder::CONFIG_PARTITION_MOUNT}",
@@ -129,8 +129,9 @@ class ImageBuilder < BaseBuilder
 			'chmod a+x /usr/sbin/policy-rc.d',
 
 			# Add more repos
-			"echo #{trusty_update_repo} >> /etc/apt/sources.list",
-			"echo #{trusty_universe_repo} >> /etc/apt/sources.list",
+			"echo deb #{mirror_url} trusty          main restricted universe >  /etc/apt/sources.list",
+			"echo deb #{mirror_url} trusty-updates  main restricted universe >> /etc/apt/sources.list",
+			"echo deb #{mirror_url} trusty-security main restricted universe >> /etc/apt/sources.list",
 
 			# Update the apt cache
 			'apt-get update',
