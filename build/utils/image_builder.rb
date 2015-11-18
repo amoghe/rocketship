@@ -55,22 +55,22 @@ class ImageBuilder < BaseBuilder
 		header("Building system image")
 		self.ensure_root_privilege
 
-		banner('Build with these options')
+		notice('Build with these options')
 		info("Install developer packages\t: #{dev_build}")
 		info("Upgrade the distribution\t: #{upgrade}")
 		sleep(1) # Let it sink in
 
 		self.on_mounted_tmpfs do |tempdir|
-			banner("Unpacking (debootstrap) rootfs")
+			notice("Unpacking (debootstrap) rootfs")
 			self.extract_rootfs(tempdir)
 
-			banner('Installing additional components')
+			notice('Installing additional components')
 			self.install_additional_packages(tempdir)
 
-			banner('Packaging the image')
+			notice('Packaging the image')
 			self.package(tempdir)
 
-			banner('Done')
+			notice('Done')
 		end # on_mounted_tmpfs
 
 		nil

@@ -18,44 +18,36 @@ class BaseBuilder
 	# 34 blue
 	# 35 magenta
 
+	def red(line)    ; "\033[0;31m#{line}\033[0m" ; end
+	def green(line)  ; "\033[0;32m#{line}\033[0m" ; end
+	def yellow(line) ; "\033[0;33m#{line}\033[0m" ; end
+	def blue(line)   ; "\033[0;34m#{line}\033[0m" ; end
+	def magenta(line); "\033[0;35m#{line}\033[0m" ; end
+
 
 	def info(line)
-		msg = STDOUT.tty? ? "\033[0;33m#{line}\033[0m" : msg
+		msg = STDOUT.tty? ? green(line) : msg
 		puts msg
 	end
 
 	def warn(line)
-		msg = STDOUT.tty? ? "\033[0;31m#{line}\033[0m" : msg
+		msg = STDOUT.tty? ? red(line) : msg
 		puts msg
 	end
 
-	def banner(title, prefix=nil)
-		[
-			'|',
-			"| #{prefix ? prefix : ''} #{title}.",
-			'|'
-		].each do |line|
-			line = "\033[0;34m#{line}\033[0m" if STDOUT.tty?
-			puts(line)
-		end
+	def notice(line)
+		msg = STDOUT.tty? ? blue(line) : msg
+		puts msg
 	end
 
 	def header(line)
-		len = line.length
-		border = '|' + '-'* (len+2) + '|'
+		l_msg = "- - -[#{line}]"
+		r_msg = "- " * ((80 - l_msg.length)/2)
 
-		lines = [
-			'',
-			border,
-			'| ' + line + ' |',
-			border,
-			'',
-		].each do |l|
-			l = "\033[0;32m#{l}\033[0m" if STDOUT.tty?
-			puts(l)
-		end
+		puts ""
+		puts yellow("#{l_msg}#{r_msg}")
+		puts ""
 	end
-
 
 	#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	# Helper module to house functions needed during the build.
@@ -78,7 +70,7 @@ class BaseBuilder
 	class PermissionError < StandardError ; end
 
 	def ensure_root_privilege
-		banner('Triggerring sudo')
+		notice('Triggerring sudo')
 		execute!('date', true)
 		true
 	end
@@ -86,7 +78,7 @@ class BaseBuilder
 	def on_mounted_tmpfs(size='1G')
 		Dir.mktmpdir do |tempdir|
 			begin
-				banner('Mounting tmpfs')
+				notice('Mounting tmpfs')
 				# 1G should be sufficient. Our image shouldn't be larger than that ;)
 				execute!("mount -t tmpfs -o size=#{size} debootstrap-tmpfs #{tempdir}",	true)
 				yield tempdir if block_given?

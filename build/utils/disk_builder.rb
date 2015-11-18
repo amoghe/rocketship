@@ -68,12 +68,23 @@ class DiskBuilder < BaseBuilder
 	#
 	def build
 		header("Building disk")
+
+		notice("Creating disk file and loopback device")
 		self.create_loopback_disk
+
+		notice("Creating partitions on disk")
 		self.create_partitions
+
+		notice("Installing grub on disk mbr")
 		self.install_grub
+
+		notice("Installing system image on disk partitions")
 		self.install_system_image
+
+		notice("Creating vmdk from raw disk")
 		self.create_vmdk
 	ensure
+		notice("Deleting loop disk (and its backing file)")
 		self.delete_loopback_disk
 	end
 
@@ -81,8 +92,6 @@ class DiskBuilder < BaseBuilder
 	# Create the loopback disk device on which we'll first install the image
 	#
 	def create_loopback_disk
-		banner("Creating disk file and loopback device")
-
 		@tempfile = "/tmp/tempdisk_#{Time.now.to_i}"
 		execute!("fallocate -l #{TOTAL_DISK_SIZE_GB}G #{@tempfile}", false)
 
@@ -100,7 +109,6 @@ class DiskBuilder < BaseBuilder
 	# Delete the loopback disk device
 	#
 	def delete_loopback_disk
-		banner("Deleting loop disk and file")
 		execute!("losetup -d #{dev}") if dev && dev.length > 0
 		execute!("rm -f #{@tempfile}") if @tempfile && @tempfile.length > 0
 	end
@@ -141,7 +149,6 @@ class DiskBuilder < BaseBuilder
 	# Install the grub bootloader.
 	#
 	def install_grub
-		info("installing grub")
 		# mount it at some temp location, and operate on it
 		Dir.mktmpdir do |mountdir|
 			begin
@@ -351,9 +358,6 @@ class DiskBuilder < BaseBuilder
 	end
 
 	def create_vmdk
-		execute!("losetup -d #{dev}")
-		@dev = nil # nil it out, indicating we were successful in umounting it
-
 		execute!("qemu-img convert -f raw -O vmdk #{@tempfile} #{VMDK_FILE_PATH}")
 
 		orig_user = `whoami`.strip

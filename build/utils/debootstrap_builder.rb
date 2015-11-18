@@ -49,7 +49,7 @@ class DebootstrapBuilder < BaseBuilder
 
 		self.on_mounted_tmpfs do |tempdir|
 
-			banner('Running debootstrap')
+			notice('Running debootstrap')
 			execute!(["debootstrap",
 				verbose ? "--verbose" : "",
 				"--variant minbase",
@@ -62,7 +62,7 @@ class DebootstrapBuilder < BaseBuilder
 
 			cmd =
 
-			banner('Packaging rootfs')
+			notice('Packaging rootfs')
 			execute!(['tar ',
 				'--create',
 				'--gzip',
@@ -85,7 +85,7 @@ class DebootstrapBuilder < BaseBuilder
 	def create_debootstrap_packages_tarball()
 		cached_pkgs_tarball = CACHED_DEBOOTSTRAP_PKGS_PATH
 
-		banner("Removing old cached packages")
+		notice("Removing old cached packages")
 		execute!("rm -f #{cached_pkgs_tarball}")
 
 		self.on_mounted_tmpfs do |tempdir|
@@ -95,7 +95,7 @@ class DebootstrapBuilder < BaseBuilder
                         workdir = File.join(tempdir, "work")
                         execute!("mkdir -p #{workdir}")
 
-			banner("Invoking debootstrap to create new cached packages tarball")
+			notice("Invoking debootstrap to create new cached packages tarball")
 			execute!(["debootstrap",
 				verbose ? "--verbose" : "",
 				"--variant minbase",
@@ -107,7 +107,7 @@ class DebootstrapBuilder < BaseBuilder
 			].join(" "))
 		end
 
-		banner("debootstrap packages cached at:" + cached_pkgs_tarball)
+		notice("debootstrap packages cached at:" + cached_pkgs_tarball)
 	end
 
 end
