@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -336,12 +337,30 @@ func (c *Controller) EnsureHomedirs() error {
 			continue
 		}
 
+		c.log.Debugln("Ensuring .cache in homedir")
+		os.Mkdir(dirname+"/.cache", 0700)
+		// This err is non-fatal
+
+		c.log.Debugln("Ensuring motd displayed marker file")
+		ioutil.WriteFile(dirname+"/.cache/motd.legal-displayed", []byte{}, 0644)
+		// This err is non-fatal
+
 		c.log.Debugf("Ensuring %s has homedir owned by %d:%d", user.Name, user.Uid(), user.Gid())
 		err = os.Chown(dirname, user.Uid(), user.Gid())
 		if err != nil {
 			failed[user.Name] = true
 			continue
 		}
+
+		c.log.Debugln("Ensuring all files in homdir are owned by %s", user.Name)
+		filepath.Walk(dirname, func(path string, info os.FileInfo, err error) error {
+			err = os.Chown(dirname, user.Uid(), user.Gid())
+			if err != nil {
+				failed[user.Name] = true
+				return err
+			}
+			return nil
+		})
 	}
 
 	// TODO:  If there were errors creating any of the homedirs, return them
