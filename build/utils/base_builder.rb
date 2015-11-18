@@ -1,4 +1,3 @@
-require 'colorize'
 require 'tmpdir'
 require 'rake/file_utils'
 
@@ -13,13 +12,20 @@ class BaseBuilder
 	# Print prettier messages.
 	#
 
-	def info(msg)
-		msg = STDOUT.tty? ? msg.to_s.yellow : msg
+	# 31 red
+	# 32 green
+	# 33 yellow
+	# 34 blue
+	# 35 magenta
+
+
+	def info(line)
+		msg = STDOUT.tty? ? "\033[0;33m#{line}\033[0m" : msg
 		puts msg
 	end
 
-	def warn(msg)
-		msg = STDOUT.tty? ? msg.to_s.red : msg
+	def warn(line)
+		msg = STDOUT.tty? ? "\033[0;31m#{line}\033[0m" : msg
 		puts msg
 	end
 
@@ -29,7 +35,7 @@ class BaseBuilder
 			"| #{prefix ? prefix : ''} #{title}.",
 			'|'
 		].each do |line|
-			line = line.to_s.blue if STDOUT.tty?
+			line = "\033[0;34m#{line}\033[0m" if STDOUT.tty?
 			puts(line)
 		end
 	end
@@ -45,7 +51,7 @@ class BaseBuilder
 			border,
 			'',
 		].each do |l|
-			l = l.to_s.green if STDOUT.tty?
+			l = "\033[0;32m#{l}\033[0m" if STDOUT.tty?
 			puts(l)
 		end
 	end
