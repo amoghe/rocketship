@@ -11,6 +11,13 @@ declare INSTALLATION_CMDS=(
     "git"
     "rake"
     "bundler"
+    "tar"
+    "chroot"
+    "parted"
+    "losetup"
+    "grub-mkimage"
+    "grub-bios-setup"
+    "qemu-img"
 )
 
 # How to install programs
@@ -21,6 +28,13 @@ declare -A INSTALLATION_HELP=(
     ["git"]="sudo apt-get install git"
     ["rake"]="sudo gem install rake"
     ["bundler"]="sudo gem install bundler"
+    ["tar"]="sudo apt-get install tar"
+    ["chroot"]="sudo apt-get install coreutils"
+    ["parted"]="sudo apt-get install parted"
+    ["losetup"]="sudo apt-get install mount"
+    ["grub-mkimage"]="sudo apt-get install grub-common"
+    ["grub-bios-setup"]="sudo apt-get install grub-pc"
+    ["qemu-img"]="sudo apt-get install qemu-utils"
 )
 
 # Color codes
