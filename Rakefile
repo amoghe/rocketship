@@ -166,8 +166,11 @@ namespace :clean do
 		sh("rm -f #{DiskBuilder::VMDK_FILE_PATH}")
 	end
 
-	desc 'Clean everything'
-	task :full => [:allbins, :copiedbins, :debootstrap_rootfs, :image, :disk]
+	desc 'Clean all "built" files'
+	task :clean => [:allbins, :copiedbins, :image, :disk]
+
+	desc 'Clean everything (incl. copied files, cached rootfs)'
+	task :realclean => [:allbins, :copiedbins, :debootstrap_rootfs, :image, :disk]
 end
 
 namespace :test do
