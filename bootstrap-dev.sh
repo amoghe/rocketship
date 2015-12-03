@@ -10,7 +10,6 @@ declare INSTALLATION_CMDS=(
     "ruby"
     "git"
     "rake"
-    "bundler"
     "tar"
     "chroot"
     "parted"
@@ -24,10 +23,9 @@ declare INSTALLATION_CMDS=(
 declare -A INSTALLATION_HELP=(
     ["go"]="instructions at https://golang.org/dl"
     ["gcc"]="sudo apt-get install build-essential"
-    ["ruby"]="sudo apt-get install ruby"
+    ["ruby"]="sudo apt-get install ruby1.9.1"
     ["git"]="sudo apt-get install git"
     ["rake"]="sudo gem install rake"
-    ["bundler"]="sudo gem install bundler"
     ["tar"]="sudo apt-get install tar"
     ["chroot"]="sudo apt-get install coreutils"
     ["parted"]="sudo apt-get install parted"
@@ -79,10 +77,17 @@ function check_program_exists() {
 for cmd in ${INSTALLATION_CMDS[@]}; do
     status=$(check_program_exists $cmd)
 
-    print_green "Checking for '${cmd}':\t[$status]"
+    line=$(printf '%-50s [%s]' "Checking for $cmd" "$status")
+    print_green "$line"
 
-    if [ $status == "FAIL" ]; then
+    if [ "$status" == "FAIL" ]; then
 	print_red "Install using: ${INSTALLATION_HELP[$cmd]}"
     fi
 
 done
+
+if [ "x$GOPATH" == "x" ]; then
+        print_red "No GOPATH detected!"
+        print_red "Once 'go' is installed, check out this source code in your GOPATH"
+        exit 2
+fi
