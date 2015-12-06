@@ -187,7 +187,7 @@ class ImageBuilder < BaseBuilder
 			"-C #{rootfs_dir} ."
 		].join(' ')
 
-		info('Packaging...')
+		info('Packaging in tar format')
 		execute!(cmd, true)
 
 		nil
