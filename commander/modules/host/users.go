@@ -352,7 +352,7 @@ func (c *Controller) EnsureHomedirs() error {
 			continue
 		}
 
-		c.log.Debugln("Ensuring all files in homdir are owned by %s", user.Name)
+		c.log.Debugln("Ensuring all files in homdir are owned by", user.Name)
 		filepath.Walk(dirname, func(path string, info os.FileInfo, err error) error {
 			err = os.Chown(dirname, user.Uid(), user.Gid())
 			if err != nil {
