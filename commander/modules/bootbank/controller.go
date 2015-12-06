@@ -108,12 +108,20 @@ func (c *Controller) GetBootbankDetails(ctx web.C, w http.ResponseWriter, r *htt
 	)
 
 	readVersionFileFromDir := func(dir string) error {
-		if vbytes, err := ioutil.ReadFile(dir + "/" + ImageVersionFile); err != nil {
-			return err
+		if vbytes, err := ioutil.ReadFile(dir + "/" + ImageVersionFile); err == nil {
+			version = string(vbytes[0 : len(vbytes)-1]) // leave out trailing newline
+			return nil
 		} else {
-			version = string(vbytes)
+			if perr, ok := err.(*os.PathError); ok {
+				if perr.Err == syscall.ENOENT {
+					return fmt.Errorf("Unavailable - no image installed")
+				} else {
+					return fmt.Errorf("Unavailable - %s (%T)", perr.Error(), perr.Err)
+				}
+			} else {
+				return fmt.Errorf("Error reading version info: %s", err)
+			}
 		}
-		return nil
 	}
 
 	if bbLabel == c.currentBootbankLabel() {
@@ -124,7 +132,7 @@ func (c *Controller) GetBootbankDetails(ctx web.C, w http.ResponseWriter, r *htt
 		ret = BootbankDetails{Version: version, Active: false}
 	}
 	if err != nil {
-		jsonError(fmt.Errorf("Failed to read version file: %s", err), w)
+		jsonError(fmt.Errorf("Failed to read version file. %s", err), w)
 		return
 	}
 	if err := json.NewEncoder(w).Encode(ret); err != nil {
@@ -240,7 +248,7 @@ func (c *Controller) loadImageStreamIntoBootbank(banklabel string, stream io.Rea
 		return fmt.Errorf("Bootbank is currently active")
 	}
 
-	return withMountedPartition("/dev/disk/by-label/"+banklabel, false, c.log, unpackImageIntoDir)
+	return withMountedPartition(banklabel, false, c.log, unpackImageIntoDir)
 }
 
 func (c *Controller) loadImageFileIntoBootbank(banklabel string, imgFilePath string) error {
@@ -271,7 +279,7 @@ func (c *Controller) loadImageFileIntoBootbank(banklabel string, imgFilePath str
 		return fmt.Errorf("Bootbank is currently active")
 	}
 
-	if err := withMountedPartition("/dev/disk/by-label/"+banklabel, false, c.log, unpackImageIntoDir); err != nil {
+	if err := withMountedPartition(banklabel, false, c.log, unpackImageIntoDir); err != nil {
 		return err
 	}
 
@@ -304,7 +312,7 @@ func (c *Controller) makeBootbankBootable(banklabel string) error {
 		return nil
 	}
 
-	return withMountedPartition("/dev/disk/by-label/"+GrubPartitionlabel, false, c.log, writeGrubFile)
+	return withMountedPartition(GrubPartitionlabel, false, c.log, writeGrubFile)
 }
 
 func (c *Controller) grubConfContents(bootableBankLabel string) (string, error) {
@@ -355,7 +363,7 @@ func (c *Controller) grubConfContents(bootableBankLabel string) (string, error) 
 	return output.String(), nil
 }
 
-func withMountedPartition(partition string, readonly bool, log distillog.Logger, f func(string) error) error {
+func withMountedPartition(partitionLabel string, readonly bool, log distillog.Logger, f func(string) error) error {
 	tempDir, err := ioutil.TempDir(os.TempDir(), "tempMountedPartition")
 	if err != nil {
 		return err
@@ -366,13 +374,14 @@ func withMountedPartition(partition string, readonly bool, log distillog.Logger,
 		flags |= syscall.MS_RDONLY
 	}
 
-	log.Debugf("Mounting %s on %s (readonly: %t) (flags: %X)", partition, tempDir, readonly, uintptr(flags))
-	if err := syscall.Mount(partition, tempDir, "ext4", uintptr(flags), ""); err != nil {
+	partitionPath := "/dev/disk/by-label/" + partitionLabel
+	log.Debugf("Mounting %s on %s (readonly: %t) (flags: %X)", partitionPath, tempDir, readonly, uintptr(flags))
+	if err := syscall.Mount(partitionPath, tempDir, "ext4", uintptr(flags), ""); err != nil {
 		log.Errorln("mount syscall failed:", err)
 		return err
 	}
 	defer func() {
-		log.Debugf("Unmounting %s (from %s)", partition, tempDir)
+		log.Debugf("Unmounting %s (from %s)", partitionPath, tempDir)
 		syscall.Unmount(tempDir, 0)
 		os.RemoveAll(tempDir)
 	}()
