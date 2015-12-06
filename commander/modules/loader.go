@@ -6,6 +6,7 @@ import (
 	"rocketship/commander/modules/bootbank"
 	"rocketship/commander/modules/crashcorder"
 	"rocketship/commander/modules/host"
+	"rocketship/commander/modules/powerstate"
 	"rocketship/commander/modules/radio"
 	"rocketship/commander/modules/ssh"
 	"rocketship/commander/modules/stats"
@@ -33,5 +34,6 @@ func LoadAll(db *gorm.DB, log distillog.Logger) []Controller {
 		syslog.NewController(db, log),
 		bootbank.NewController(db, log),
 		stats.NewController(db, log),
+		powerstate.NewController(db, log),
 	}
 }
