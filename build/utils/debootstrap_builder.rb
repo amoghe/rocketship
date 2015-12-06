@@ -39,6 +39,9 @@ class DebootstrapBuilder < BaseBuilder
 	def create_debootstrap_rootfs()
 		header("Creating basic rootfs using debootstrap")
 
+		notice("Ensure cache dir")
+		execute!("mkdir -p #{CACHE_DIR_PATH}")
+
 		if File.exists?(CACHED_DEBOOTSTRAP_PKGS_PATH)
 			cached_pkgs_opt = "--unpack-tarball=#{CACHED_DEBOOTSTRAP_PKGS_PATH}"
 			info("Cached debootstrap packages found in tarball at: #{CACHED_DEBOOTSTRAP_PKGS_PATH}")
@@ -87,6 +90,9 @@ class DebootstrapBuilder < BaseBuilder
 
 		notice("Removing old cached packages")
 		execute!("rm -f #{cached_pkgs_tarball}")
+
+		notice("Ensure cache dir")
+		execute!("mkdir -p #{CACHE_DIR_PATH}")
 
 		self.on_mounted_tmpfs do |tempdir|
                         # create a work dir in the tempdir, because debootstrap wants to delete its work dir when
