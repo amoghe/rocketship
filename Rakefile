@@ -1,10 +1,6 @@
 # Rake tasks for building the various parts of the system
 #
 
-# Ensure all our ruby code in the rake files (and friends) run in
-# a deterministic environment providede by Bundler.
-require 'bundler/setup'
-
 require_relative 'build/utils/disk_builder'
 require_relative 'build/utils/image_builder'
 require_relative 'build/utils/debootstrap_builder'
