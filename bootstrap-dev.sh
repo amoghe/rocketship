@@ -3,8 +3,9 @@
 # Needed for ruby/gem installation
 export LANG=en_US.UTF-8
 
-# Which programs to install
+# Which programs need to be installed
 declare INSTALLATION_CMDS=(
+    "debootstrap"
     "go"
     "gcc"
     "ruby"
@@ -19,8 +20,9 @@ declare INSTALLATION_CMDS=(
     "qemu-img"
 )
 
-# How to install programs
+# How to install missing programs
 declare -A INSTALLATION_HELP=(
+    ["debootstrap"]="sudo apt-get install debootstrap"
     ["go"]="instructions at https://golang.org/dl"
     ["gcc"]="sudo apt-get install build-essential"
     ["ruby"]="sudo apt-get install ruby1.9.1"
