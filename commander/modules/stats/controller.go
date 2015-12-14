@@ -84,7 +84,7 @@ func (c *Controller) RewritePrometheusFile() error {
 	if err != nil {
 		return fmt.Errorf("Failed to get prometheus user from host module: %s", err)
 	}
-	if err := os.MkdirAll(PrometheusDataDir, 0644); err != nil {
+	if err := os.MkdirAll(PrometheusDataDir, 0755); err != nil {
 		return fmt.Errorf("Failed to ensure prometheus data dir: %s", err)
 	}
 	if err := os.Chown(PrometheusDataDir, pUser.Uid, pUser.Gid); err != nil {
