@@ -1,12 +1,12 @@
 package powerstate
 
 import (
-	"distillog"
 	"fmt"
 	"net/http"
 	"os/exec"
 	"sync"
 
+	"github.com/amoghe/distillog"
 	"github.com/jinzhu/gorm"
 	"github.com/zenazn/goji/web"
 )
