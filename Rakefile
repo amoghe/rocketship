@@ -165,7 +165,7 @@ namespace :clean do
 	desc 'Clean all "built" files'
 	task :clean => [:allbins, :copiedbins, :image, :disk]
 
-	desc 'Clean everything (incl. copied files, cached rootfs)'
+	desc 'Clean everything (including copied files, cached rootfs+tarball)'
 	task :realclean => [:allbins, :copiedbins, :debootstrap_rootfs, :image, :disk]
 end
 
