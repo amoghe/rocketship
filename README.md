@@ -4,20 +4,24 @@ Rocketship helps you launch your software on a linux appliance (physical or virt
 
 ## What is the motivation behind this project?
 
-Yours truly has seen various flavors of the same software at different companies
-who were shipping virtual and physical appliances to their customers. Each time
-they spent an inordinate amount of time and resources building software that was
-not directly related to their core IP. `rocketship` is an attempt to provide the
-common core functionality needed in order to ship linux based appliances.
+Companies that ship their product as physical or virtual appliances end up
+spending an inordinate amount of time and resources building software to
+manage the state of the appliance and provide facilities that make the
+product usable. While this is necessary for the product to be stable and
+easily serviceable, it distracts from the focus of building the core IP
+that is going to provide value to the user. `rocketship` is an attempt to
+provide the common core functionality needed in order to ship linux based
+appliances, allowing you to focus on other things.
 
-Shipping your software on an appliance involves developing all the pieces of software
-that are required to keep the appliance operational and usable. Some of these include:
+What is this core functionality, you ask? Typically, this includes services
+(outside the core business process) that help usability, serviceability and
+generally help keep the appliance operational. Some of these include:
 
 * System metrics
 * Crash reporting
 * Easy (atomic) upgrades
 * User login account management
-* Command line interface (CLI)
+* Command line interfaces (CLI)
 
 `rocketship` intends to provide the platform on which you can ship your software
 without needing to develop all these peripheral pieces. You place your binary (or
