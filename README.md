@@ -5,7 +5,7 @@ Rocketship helps you launch your software on a linux appliance (physical or virt
 ## What is the motivation behind this project?
 
 Companies that ship their product as physical or virtual appliances end up
-spending an inordinate amount of time and resources building software to
+spending an large amount of time and resources building software to
 manage the state of the appliance and provide facilities that make the
 product usable. While this is necessary for the product to be stable and
 easily serviceable, it distracts from the focus of building the core IP
