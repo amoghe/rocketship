@@ -10,7 +10,7 @@ import (
 
 	"github.com/parnurzeal/gorequest"
 	"golang.org/x/crypto/ssh/terminal"
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/alecthomas/kingpin"
 )
 
 var (

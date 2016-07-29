@@ -8,8 +8,8 @@ import (
 	"rocketship/commander/modules/host"
 	"strings"
 
+	"github.com/alecthomas/kingpin"
 	"github.com/parnurzeal/gorequest"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
