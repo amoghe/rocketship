@@ -128,9 +128,11 @@ class ImageBuilder < BaseBuilder
 			'chmod a+x /usr/sbin/policy-rc.d',
 
 			# Add pkg repo config
-			"echo deb #{mirror_url} trusty          main restricted universe >  /etc/apt/sources.list",
-			"echo deb #{mirror_url} trusty-updates  main restricted universe >> /etc/apt/sources.list",
-			"echo deb #{mirror_url} trusty-security main restricted universe >> /etc/apt/sources.list",
+			# Not doing this here any more, this is done in debootstrap builder since it is the one
+			# who knows which distro/flavor was built and can populate these correcrtly.
+			#"echo deb #{mirror_url} trusty          main restricted universe >  /etc/apt/sources.list",
+			#"echo deb #{mirror_url} trusty-updates  main restricted universe >> /etc/apt/sources.list",
+			#"echo deb #{mirror_url} trusty-security main restricted universe >> /etc/apt/sources.list",
 
 			# Update the apt cache
 			'apt-get update',

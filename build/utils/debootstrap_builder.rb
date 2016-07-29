@@ -7,7 +7,7 @@ class DebootstrapBuilder < BaseBuilder
 
 	# These packages go into the barebones linux rootfs
 	ESSENTIAL_PKGS = [
-		'linux-image-generic',
+		'linux-image-amd64'  ,
 		'dbus'               ,
 		'iputils-ping'       , # ping
 		'isc-dhcp-client'    , # dhcp
@@ -19,6 +19,7 @@ class DebootstrapBuilder < BaseBuilder
 	]
 
 	UBUNTU_APT_ARCHIVE_URL = "http://archive.ubuntu.com/ubuntu"
+	DEBIAN_APT_ARCHIVE_URL = "http://debian.osuosl.org/debian"
 
 	CWD = File.dirname(__FILE__)
 	BUILD_DIR_PATH = File.expand_path(File.join(CWD, '..'))
@@ -27,13 +28,25 @@ class DebootstrapBuilder < BaseBuilder
 	CACHED_DEBOOTSTRAP_PKGS_NAME = "debootstrap_pkgs.tgz"
 	CACHED_DEBOOTSTRAP_PKGS_PATH = File.join(CACHE_DIR_PATH, CACHED_DEBOOTSTRAP_PKGS_NAME)
 
-	DEBOOTSTRAP_ROOTFS_NAME = "debootstrap_rootfs.tar.gz"
+	DEBOOTSTRAP_ROOTFS_NAME = "debootstrap_rootfs.tgz"
 	DEBOOTSTRAP_ROOTFS_PATH = File.join(CACHE_DIR_PATH, DEBOOTSTRAP_ROOTFS_NAME)
 
 	attr_reader :verbose
 
-	def initialize(verbose)
+	def initialize(distro, verbose)
+		@distro  = distro
 		@verbose = !!verbose
+
+		case distro
+		when "ubuntu"
+			@flavor = "trusty"
+			@archive_url = UBUNTU_APT_ARCHIVE_URL
+		when "debian"
+			@flavor = "jessie"
+			@archive_url = DEBIAN_APT_ARCHIVE_URL
+		else
+			raise ArgumentError, "Invalid distro specified"
+		end
 	end
 
 	def create_debootstrap_rootfs()
@@ -58,12 +71,12 @@ class DebootstrapBuilder < BaseBuilder
 				"--variant minbase",
 				cached_pkgs_opt,
 				"--include #{ESSENTIAL_PKGS.join(",")}",
-				"trusty",
+				@flavor,
 				tempdir,
-				UBUNTU_APT_ARCHIVE_URL,
+				@archive_url,
 			].join(" "))
 
-			cmd =
+			add_apt_sources(tempdir)
 
 			notice('Packaging rootfs')
 			execute!(['tar ',
@@ -78,17 +91,40 @@ class DebootstrapBuilder < BaseBuilder
 				"-C #{tempdir} ."
 			].join(' '),
 			true)
-
 		end
+
+	end
+
+	def add_apt_sources(tempdir)
+		notice("Adding appropriate apt sources")
+		case @distro
+		when "ubuntu"
+			lines = [
+				"deb #{@archive_url} #{@flavor}          main restricted universe",
+				"deb #{@archive_url} #{@flavor}-updates  main restricted universe",
+				"deb #{@archive_url} #{@flavor}-security main restricted universe",
+			].join("\n")
+		when "debian"
+			lines = [
+				"deb http://ftp.debian.org/debian #{@flavor}         main contrib",
+				"deb http://ftp.debian.org/debian #{@flavor}-updates main contrib",
+				"deb http://security.debian.org/  #{@flavor}/updates main contrib",
+			].join("\n")
+		else
+			raise ArgumentError, "Unknown flavor"
+		end
+
+		execute!("echo \"#{lines}\" | sudo tee #{tempdir}/etc/apt/sources.list")
 	end
 
 	##
 	# Create a debootstrap compatible tarball of deb packages.
 	#
 	def create_debootstrap_packages_tarball()
+		header("(Re)creating tarball of packages needed for debootstrap rootfs")
 		cached_pkgs_tarball = CACHED_DEBOOTSTRAP_PKGS_PATH
 
-		notice("Removing old cached packages")
+		notice("Ensuring old packages tarball does not exist")
 		execute!("rm -f #{cached_pkgs_tarball}")
 
 		notice("Ensure cache dir")
@@ -107,9 +143,9 @@ class DebootstrapBuilder < BaseBuilder
 				"--variant minbase",
 				"--include #{ESSENTIAL_PKGS.join(",")}",
 				"--make-tarball #{cached_pkgs_tarball}",
-				"trusty",
+				@flavor,
 				workdir,
-				UBUNTU_APT_ARCHIVE_URL,
+				@archive_url,
 			].join(" "))
 		end
 
